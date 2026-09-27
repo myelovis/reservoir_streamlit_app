@@ -1,7 +1,7 @@
 import streamlit as st
 
 st.set_page_config(
-    page_page_title="Hydropower Reservoir Dashboard",
+    page_title="Hydropower Reservoir Dashboard",  # Fixed typo here
     page_icon="🌊",
     layout="wide",
     initial_sidebar_state="expanded",
