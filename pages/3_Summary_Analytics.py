@@ -5,13 +5,13 @@ from utils import load_data
 
 st.set_page_config(page_title="Summary Analytics", page_icon="📈", layout="wide")
 
-st.title("📈 Summary Analytics & Combined Trends")
+st.title("📈 Summary Analytics & Trends")
 
 try:
-    # 1. Load the dataset first
+    # 1. Load dataset
     df = load_data()
 
-    # 2. Aggregate national totals/averages across price areas per date
+    # 2. National level aggregation across date_id
     df_national = (
         df.groupby("date_id")
         .agg(
@@ -19,34 +19,68 @@ try:
                 "capacity_twh": "sum",
                 "storage_twh": "sum",
                 "fill_ratio": "mean",
+                "fill_ratio_previous_week": "mean",
+                "fill_ratio_change": "mean",
             }
         )
         .reset_index()
     )
 
-    st.subheader("Dual Axis Plot: Energy Volume vs. Fill Ratio")
+    # -------------------------------------------------------------
+    # SECTION 1: Subplots Grid (One separate plot per feature)
+    # -------------------------------------------------------------
+    st.subheader("📊 Individual Feature Subplots")
 
-    # Dual Y-Axis Chart
-    fig, ax1 = plt.subplots(figsize=(12, 5))
+    numeric_cols = [
+        "capacity_twh",
+        "storage_twh",
+        "fill_ratio",
+        "fill_ratio_previous_week",
+        "fill_ratio_change",
+    ]
+    # Keep only columns present in the dataset
+    numeric_cols = [c for c in numeric_cols if c in df_national.columns]
+
+    n_cols = len(numeric_cols)
+    fig_subplots, axes = plt.subplots(
+        nrows=n_cols, ncols=1, figsize=(12, 3 * n_cols), sharex=True
+    )
+
+    if n_cols == 1:
+        axes = [axes]
+
+    for ax, col in zip(axes, numeric_cols):
+        ax.plot(df_national["date_id"], df_national[col], color="#2b5c8f", linewidth=1.5)
+        ax.set_title(col.replace("_", " ").title(), fontsize=11, fontweight="bold")
+        ax.set_ylabel("Value", fontsize=9)
+        ax.grid(True, linestyle=":", alpha=0.6)
+
+    axes[-1].set_xlabel("Date", fontsize=10, fontweight="bold")
+    plt.tight_layout()
+    st.pyplot(fig_subplots)
+
+    # -------------------------------------------------------------
+    # SECTION 2: Combined Dual-Axis Plot (All Key Metrics Together)
+    # -------------------------------------------------------------
+    st.subheader("📈 Combined Metrics Plot (Dual Y-Axis)")
+
+    fig_dual, ax1 = plt.subplots(figsize=(12, 5))
 
     color_cap = "#2b5c8f"
     color_stor = "#4682b4"
     color_ratio = "#d95f02"
 
-    # Left Y-Axis: Energy Capacity & Storage (TWh)
+    # Left Axis: TWh values
     ax1.set_xlabel("Date", fontsize=10, fontweight="bold")
-    ax1.set_ylabel(
-        "Energy Potential (TWh)", color=color_cap, fontsize=10, fontweight="bold"
-    )
-    line1 = ax1.plot(
+    ax1.set_ylabel("Energy Potential (TWh)", color=color_cap, fontsize=10, fontweight="bold")
+    l1 = ax1.plot(
         df_national["date_id"],
         df_national["capacity_twh"],
         color=color_cap,
         linestyle="--",
-        linewidth=1.5,
         label="Capacity (TWh)",
     )
-    line2 = ax1.plot(
+    l2 = ax1.plot(
         df_national["date_id"],
         df_national["storage_twh"],
         color=color_stor,
@@ -55,12 +89,10 @@ try:
     )
     ax1.tick_params(axis="y", labelcolor=color_cap)
 
-    # Right Y-Axis: Fill Ratio
+    # Right Axis: Fill Ratio Ratio
     ax2 = ax1.twinx()
-    ax2.set_ylabel(
-        "Fill Ratio (0–1)", color=color_ratio, fontsize=10, fontweight="bold"
-    )
-    line3 = ax2.plot(
+    ax2.set_ylabel("Fill Ratio (0–1)", color=color_ratio, fontsize=10, fontweight="bold")
+    l3 = ax2.plot(
         df_national["date_id"],
         df_national["fill_ratio"],
         color=color_ratio,
@@ -71,48 +103,13 @@ try:
     ax2.tick_params(axis="y", labelcolor=color_ratio)
     ax2.set_ylim(0, 1.05)
 
-    # Combine legends
-    lines = line1 + line2 + line3
-    labels = [l.get_label() for l in lines]
+    # Merge legends
+    lines = l1 + l2 + l3
+    labels = [line.get_label() for line in lines]
     ax1.legend(lines, labels, loc="upper left")
     ax1.grid(True, linestyle=":", alpha=0.5)
 
-    st.pyplot(fig)
-
-    st.subheader("Normalized Trend Comparison (0–1 Scale)")
-
-    # Min-Max Normalized Visual Comparison
-    df_normalized = df_national.copy()
-    for col in ["capacity_twh", "storage_twh", "fill_ratio"]:
-        min_v = df_normalized[col].min()
-        max_v = df_normalized[col].max()
-        df_normalized[col] = (df_normalized[col] - min_v) / (max_v - min_v)
-
-    fig_norm, ax_norm = plt.subplots(figsize=(12, 4))
-    ax_norm.plot(
-        df_normalized["date_id"],
-        df_normalized["capacity_twh"],
-        label="Capacity (Normalized)",
-        linestyle="--",
-    )
-    ax_norm.plot(
-        df_normalized["date_id"],
-        df_normalized["storage_twh"],
-        label="Storage (Normalized)",
-    )
-    ax_norm.plot(
-        df_normalized["date_id"],
-        df_normalized["fill_ratio"],
-        label="Fill Ratio (Normalized)",
-        alpha=0.7,
-    )
-
-    ax_norm.set_xlabel("Date", fontsize=10)
-    ax_norm.set_ylabel("Normalized Scale (0 to 1)", fontsize=10)
-    ax_norm.legend(loc="upper left")
-    ax_norm.grid(True, linestyle=":", alpha=0.5)
-
-    st.pyplot(fig_norm)
+    st.pyplot(fig_dual)
 
 except Exception as e:
-    st.error(f"Error executing analytics: {e}")
+    st.error(f"Error running summary analytics: {e}")
