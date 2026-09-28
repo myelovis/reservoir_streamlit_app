@@ -7,24 +7,37 @@ from utils import load_data
 
 st.set_page_config(page_title="Summary Analytics", page_icon="📈", layout="wide")
 
-st.title("📈 Hydropower Summary Analytics")
-st.markdown(
-    "Publication-quality overview of national hydropower metrics and combined fill ratio dynamics."
-)
+# Streamlit Dynamic UI Theme Extraction
+bg_color = st.get_option("theme.backgroundColor") or "#0e1117"
+card_bg = st.get_option("theme.secondaryBackgroundColor") or "#262730"
+text_color = st.get_option("theme.textColor") or "#fafafa"
 
-# Set global publication-quality defaults
+# Set global executive-level design defaults
 plt.rcParams.update(
     {
+        "figure.facecolor": bg_color,
+        "axes.facecolor": bg_color,
+        "savefig.facecolor": bg_color,
+        "text.color": text_color,
+        "axes.labelcolor": text_color,
+        "xtick.color": text_color,
+        "ytick.color": text_color,
         "font.family": "sans-serif",
         "font.size": 9,
         "axes.titlesize": 10,
-        "axes.titleweight": "semibold",
+        "axes.titleweight": "bold",
         "axes.labelsize": 9,
         "axes.grid": True,
-        "grid.alpha": 0.3,
+        "grid.alpha": 0.15,
+        "grid.color": text_color,
         "grid.linestyle": "--",
         "figure.autolayout": False,
     }
+)
+
+st.title("📈 Hydropower Summary Analytics")
+st.markdown(
+    "Publication-quality overview of national hydropower metrics and combined fill ratio dynamics."
 )
 
 
@@ -62,16 +75,16 @@ def plot_hydropower_analytics(
         ax = axes_flat[idx]
         title_str = col.replace("_", " ").title()
 
-        # Clean Area Fill for Delta/Change Metrics (Fixes the hairbrush visual error)
+        # Clean Area Fill for Delta/Change Metrics
         if "change" in col or "delta" in col:
-            ax.plot(x_axis, df_proc[col], color="#555555", linewidth=0.7)
+            ax.plot(x_axis, df_proc[col], color="#8d8d8d", linewidth=0.8)
             ax.fill_between(
                 x_axis,
                 df_proc[col],
                 0,
                 where=(df_proc[col] >= 0),
-                color="#0E6027",
-                alpha=0.5,
+                color="#24a148",
+                alpha=0.4,
                 label="Inflow/Fill",
             )
             ax.fill_between(
@@ -79,30 +92,37 @@ def plot_hydropower_analytics(
                 df_proc[col],
                 0,
                 where=(df_proc[col] < 0),
-                color="#DA1E28",
-                alpha=0.5,
+                color="#da1e28",
+                alpha=0.4,
                 label="Outflow/Drain",
             )
-            ax.axhline(0, color="black", linewidth=0.8, linestyle="--")
+            ax.axhline(0, color=text_color, linewidth=0.6, linestyle="--", alpha=0.5)
 
-        # High-Contrast Blue Line + Light Shading for Standard Metrics
+        # High-Contrast Accent Blue Line + Subtle Glow Shading
         else:
             ax.plot(
                 x_axis,
                 df_proc[col],
-                color="#0F62FE",
-                linewidth=1.4,
+                color="#78a9ff",
+                linewidth=1.5,
                 label=title_str,
             )
-            ax.fill_between(x_axis, df_proc[col], color="#0F62FE", alpha=0.08)
+            ax.fill_between(x_axis, df_proc[col], color="#78a9ff", alpha=0.1)
 
-        # Styling
-        ax.set_title(col.replace("_", " ").upper(), loc="left", pad=6)
-        ax.set_ylabel(title_str, fontsize=8.5)
+        # UI Refinement
+        ax.set_title(col.replace("_", " ").upper(), loc="left", pad=6, color=text_color)
+        ax.set_ylabel(title_str, fontsize=8.5, color=text_color)
         ax.tick_params(axis="both", which="major", labelsize=8)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
-        ax.legend(loc="upper left", frameon=True, framealpha=0.9, fontsize=8)
+        ax.spines["left"].set_color(text_color)
+        ax.spines["bottom"].set_color(text_color)
+
+        legend = ax.legend(loc="upper left", frameon=True, fontsize=8)
+        legend.get_frame().set_facecolor(card_bg)
+        legend.get_frame().set_edgecolor("none")
+        for text in legend.get_texts():
+            text.set_color(text_color)
 
     # Smart X-Axis Date Formatting
     locator = mdates.AutoDateLocator(minticks=4, maxticks=8)
@@ -112,11 +132,11 @@ def plot_hydropower_analytics(
         ax.xaxis.set_major_locator(locator)
         ax.xaxis.set_major_formatter(formatter)
 
-    # Clean up empty subplots
+    # Clean up unused grid cells
     for unused_ax in axes_flat[num_plots:]:
         fig.delaxes(unused_ax)
 
-    fig.subplots_adjust(hspace=0.25, wspace=0.18)
+    fig.subplots_adjust(hspace=0.28, wspace=0.18)
     return fig, axes
 
 
@@ -124,26 +144,23 @@ def plot_hydropower_analytics(
 try:
     df = load_data()
 
-    # Determine date column name safely
     primary_date = "date_id" if "date_id" in df.columns else df.columns[0]
 
-    # Ensure datetime format for aggregation and plotting
     if not pd.api.types.is_datetime64_any_dtype(df[primary_date]):
         df[primary_date] = pd.to_datetime(df[primary_date].astype(str), errors="coerce")
 
     # -------------------------------------------------------------
-    # SECTION 1: Subplots Grid (One separate plot per feature)
+    # SECTION 1: Subplots Grid
     # -------------------------------------------------------------
     st.subheader("📊 Individual Feature Subplots")
     fig_grid, axes_grid = plot_hydropower_analytics(df, date_col=primary_date)
     st.pyplot(fig_grid)
 
     # -------------------------------------------------------------
-    # SECTION 2: Combined Dual-Axis Plot (All Key Metrics Together)
+    # SECTION 2: Combined Dual-Axis Plot
     # -------------------------------------------------------------
     st.subheader("📈 Combined Metrics Plot (Dual Y-Axis)")
 
-    # Group nationally by date for coherent trend comparison
     df_national = (
         df.groupby(primary_date)
         .agg(
@@ -158,14 +175,14 @@ try:
 
     fig_dual, ax1 = plt.subplots(figsize=(12, 5), dpi=150)
 
-    color_cap = "#2b5c8f"
-    color_stor = "#4682b4"
-    color_ratio = "#d95f02"
+    color_cap = "#78a9ff"
+    color_stor = "#33b1ff"
+    color_ratio = "#ff8389"
 
-    # Left Y-Axis: Energy Capacity & Storage (TWh)
-    ax1.set_xlabel("Date", fontsize=10, fontweight="bold")
+    # Left Y-Axis: Capacity & Storage
+    ax1.set_xlabel("Date", fontsize=9.5, fontweight="bold", color=text_color)
     ax1.set_ylabel(
-        "Energy Potential (TWh)", color=color_cap, fontsize=10, fontweight="bold"
+        "Energy Potential (TWh)", color=color_cap, fontsize=9.5, fontweight="bold"
     )
     l1 = ax1.plot(
         df_national[primary_date],
@@ -187,27 +204,38 @@ try:
     # Right Y-Axis: Fill Ratio
     ax2 = ax1.twinx()
     ax2.set_ylabel(
-        "Fill Ratio (0–1)", color=color_ratio, fontsize=10, fontweight="bold"
+        "Fill Ratio (0–1)", color=color_ratio, fontsize=9.5, fontweight="bold"
     )
     l3 = ax2.plot(
         df_national[primary_date],
         df_national["fill_ratio"],
         color=color_ratio,
-        linewidth=1.5,
-        alpha=0.8,
+        linewidth=1.8,
+        alpha=0.9,
         label="Mean Fill Ratio",
     )
     ax2.tick_params(axis="y", labelcolor=color_ratio)
     ax2.set_ylim(0, 1.05)
+    ax2.set_facecolor("none")  # Ensure twin axis stays transparent
 
-    # Format X-Axis Dates cleanly
+    # Border aesthetics
+    for ax in [ax1, ax2]:
+        ax.spines["top"].set_visible(False)
+        ax.spines["bottom"].set_color(text_color)
+        ax.spines["left"].set_color(text_color)
+        ax.spines["right"].set_color(text_color)
+
     ax1.xaxis.set_major_locator(mdates.AutoDateLocator(minticks=4, maxticks=8))
     ax1.xaxis.set_major_formatter(mdates.ConciseDateFormatter(ax1.xaxis.get_major_locator()))
 
-    # Merge legends from both axes
+    # Single blended legend
     lines = l1 + l2 + l3
     labels = [line.get_label() for line in lines]
-    ax1.legend(lines, labels, loc="upper left", frameon=True, framealpha=0.9)
+    legend_dual = ax1.legend(lines, labels, loc="upper left", frameon=True)
+    legend_dual.get_frame().set_facecolor(card_bg)
+    legend_dual.get_frame().set_edgecolor("none")
+    for text in legend_dual.get_texts():
+        text.set_color(text_color)
 
     plt.tight_layout()
     st.pyplot(fig_dual)
