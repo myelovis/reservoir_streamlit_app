@@ -6,12 +6,12 @@ from utils import load_data
 
 st.set_page_config(page_title="Area Analytics", page_icon="🗺️", layout="wide")
 
-# Get theme background colors for transparent blending
+# Extract theme background colors to match Streamlit UI
 bg_color = st.get_option("theme.backgroundColor") or "#0e1117"
 card_bg = st.get_option("theme.secondaryBackgroundColor") or "#262730"
 text_color = st.get_option("theme.textColor") or "#fafafa"
 
-# Apply high-end UX theme defaults
+# Update Matplotlib defaults for transparent/matching backgrounds
 plt.rcParams.update(
     {
         "figure.facecolor": bg_color,
@@ -21,14 +21,6 @@ plt.rcParams.update(
         "axes.labelcolor": text_color,
         "xtick.color": text_color,
         "ytick.color": text_color,
-        "font.family": "sans-serif",
-        "font.size": 9,
-        "axes.titlesize": 11,
-        "axes.titleweight": "bold",
-        "axes.grid": True,
-        "grid.alpha": 0.15,
-        "grid.color": text_color,
-        "grid.linestyle": "--",
     }
 )
 
