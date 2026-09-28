@@ -8,7 +8,9 @@ from utils import load_data
 st.set_page_config(page_title="Summary Analytics", page_icon="📈", layout="wide")
 
 st.title("📈 Hydropower Summary Analytics")
-st.markdown("Publication-quality overview of national hydropower metrics and fill ratio dynamics.")
+st.markdown(
+    "Publication-quality overview of national hydropower metrics and combined fill ratio dynamics."
+)
 
 # Set global publication-quality defaults
 plt.rcParams.update(
@@ -125,11 +127,90 @@ try:
     # Determine date column name safely
     primary_date = "date_id" if "date_id" in df.columns else df.columns[0]
 
-    # Generate grid figure using your custom function
-    fig, axes = plot_hydropower_analytics(df, date_col=primary_date)
+    # Ensure datetime format for aggregation and plotting
+    if not pd.api.types.is_datetime64_any_dtype(df[primary_date]):
+        df[primary_date] = pd.to_datetime(df[primary_date].astype(str), errors="coerce")
 
-    # Render figure safely inside Streamlit
-    st.pyplot(fig)
+    # -------------------------------------------------------------
+    # SECTION 1: Subplots Grid (One separate plot per feature)
+    # -------------------------------------------------------------
+    st.subheader("📊 Individual Feature Subplots")
+    fig_grid, axes_grid = plot_hydropower_analytics(df, date_col=primary_date)
+    st.pyplot(fig_grid)
+
+    # -------------------------------------------------------------
+    # SECTION 2: Combined Dual-Axis Plot (All Key Metrics Together)
+    # -------------------------------------------------------------
+    st.subheader("📈 Combined Metrics Plot (Dual Y-Axis)")
+
+    # Group nationally by date for coherent trend comparison
+    df_national = (
+        df.groupby(primary_date)
+        .agg(
+            {
+                "capacity_twh": "sum",
+                "storage_twh": "sum",
+                "fill_ratio": "mean",
+            }
+        )
+        .reset_index()
+    )
+
+    fig_dual, ax1 = plt.subplots(figsize=(12, 5), dpi=150)
+
+    color_cap = "#2b5c8f"
+    color_stor = "#4682b4"
+    color_ratio = "#d95f02"
+
+    # Left Y-Axis: Energy Capacity & Storage (TWh)
+    ax1.set_xlabel("Date", fontsize=10, fontweight="bold")
+    ax1.set_ylabel(
+        "Energy Potential (TWh)", color=color_cap, fontsize=10, fontweight="bold"
+    )
+    l1 = ax1.plot(
+        df_national[primary_date],
+        df_national["capacity_twh"],
+        color=color_cap,
+        linestyle="--",
+        linewidth=1.5,
+        label="Capacity (TWh)",
+    )
+    l2 = ax1.plot(
+        df_national[primary_date],
+        df_national["storage_twh"],
+        color=color_stor,
+        linewidth=2,
+        label="Storage (TWh)",
+    )
+    ax1.tick_params(axis="y", labelcolor=color_cap)
+
+    # Right Y-Axis: Fill Ratio
+    ax2 = ax1.twinx()
+    ax2.set_ylabel(
+        "Fill Ratio (0–1)", color=color_ratio, fontsize=10, fontweight="bold"
+    )
+    l3 = ax2.plot(
+        df_national[primary_date],
+        df_national["fill_ratio"],
+        color=color_ratio,
+        linewidth=1.5,
+        alpha=0.8,
+        label="Mean Fill Ratio",
+    )
+    ax2.tick_params(axis="y", labelcolor=color_ratio)
+    ax2.set_ylim(0, 1.05)
+
+    # Format X-Axis Dates cleanly
+    ax1.xaxis.set_major_locator(mdates.AutoDateLocator(minticks=4, maxticks=8))
+    ax1.xaxis.set_major_formatter(mdates.ConciseDateFormatter(ax1.xaxis.get_major_locator()))
+
+    # Merge legends from both axes
+    lines = l1 + l2 + l3
+    labels = [line.get_label() for line in lines]
+    ax1.legend(lines, labels, loc="upper left", frameon=True, framealpha=0.9)
+
+    plt.tight_layout()
+    st.pyplot(fig_dual)
 
 except Exception as e:
     st.error(f"Error rendering hydropower analytics: {e}")
