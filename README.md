@@ -9,7 +9,7 @@ An interactive, multi-page Streamlit web application for analyzing, visualizing,
 - **Data Overview (`1_Data_Overview.py`)**:
   - Tabular view of numerical features with summary statistics (Count, Mean, Min, Max).
   - Embedded inline sparklines (`LineChartColumn`) displaying early trend dynamics across the first 30 days.
-  
+
 - **Interactive Visualizations (`2_Interactive_Visualizations.py`)**:
   - Custom date range selection using monthly sliders.
   - Granular single-feature inspection or normalized multi-feature comparison.
@@ -26,11 +26,11 @@ An interactive, multi-page Streamlit web application for analyzing, visualizing,
 
 ```text
 reservoir_streamlit_app/
-├── app.py                      # Main landing page / app entrance
-├── utils.py                    # Shared data loader and caching utility functions
-├── reservoirs.csv              # Primary Norwegian reservoir dataset
-├── requirements.txt            # Python library dependencies
+├── app.py                          # Main landing page / app entrance
+├── utils.py                        # Shared data loader and caching utility functions
+├── reservoirs.csv                  # Primary Norwegian reservoir dataset
+├── requirements.txt                # Python library dependencies
 └── pages/
-    ├── 1_Data_Overview.py      # Feature summary table & sparkline trends
+    ├── 1_Data_Overview.py          # Feature summary table & sparkline trends
     ├── 2_Interactive_Visualizations.py # Custom time-window plot controls
-    └── 3_Summary_Analytics.py  # Grid subplots & dual-axis national trend analysis
+    └── 3_Summary_Analytics.py      # Grid subplots & dual-axis national trend analysis
