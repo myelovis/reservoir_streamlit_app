@@ -1,87 +1,69 @@
-import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import pandas as pd
+import seaborn as sns
 import streamlit as st
 from utils import load_data
 
-st.set_page_config(page_title="Area Analytics", page_icon="🗺️", layout="wide")
+st.set_page_config(page_title="Interactive Visualizations", page_icon="📈", layout="wide")
 
-# Extract theme background colors to match Streamlit UI
-bg_color = st.get_option("theme.backgroundColor") or "#0e1117"
-card_bg = st.get_option("theme.secondaryBackgroundColor") or "#262730"
-text_color = st.get_option("theme.textColor") or "#fafafa"
-
-# Update Matplotlib defaults for transparent/matching backgrounds
-plt.rcParams.update(
-    {
-        "figure.facecolor": bg_color,
-        "axes.facecolor": bg_color,
-        "savefig.facecolor": bg_color,
-        "text.color": text_color,
-        "axes.labelcolor": text_color,
-        "xtick.color": text_color,
-        "ytick.color": text_color,
-    }
-)
-
-st.title("🗺️ Price Area Deep Dive")
-st.markdown("Filter and inspect reservoir storage levels across Norway's bidding zones.")
+st.title("📈 Interactive Reservoir Data Plots")
 
 try:
     df = load_data()
+    sns.set_theme(style="whitegrid")
 
-    # Identify primary date column
-    primary_date = "date_id" if "date_id" in df.columns else df.columns[0]
-    if not pd.api.types.is_datetime64_any_dtype(df[primary_date]):
-        df[primary_date] = pd.to_datetime(df[primary_date].astype(str), errors="coerce")
+    # Extract distinct monthly periods for the select_slider
+    df['year_month'] = df['date_id'].dt.to_period('M').astype(str)
+    available_months = sorted(df['year_month'].unique().tolist())
 
-    # Region Selector
-    area_col = [c for c in df.columns if "area" in c.lower() or "price" in c.lower() or "el" in c.lower()]
-    area_field = area_col[0] if area_col else None
+    col1, col2 = st.columns([1, 2])
 
-    if area_field:
-        areas = df[area_field].dropna().unique().tolist()
-        selected_area = st.selectbox("Select Price Area / Bidding Zone", options=areas)
-        df_filtered = df[df[area_field] == selected_area].sort_values(primary_date)
+    with col1:
+        # Dropdown for selecting columns or 'All Columns'
+        numeric_cols = df.select_dtypes(include=['float64', 'int64']).columns.tolist()
+        column_options = ["All Columns Together"] + numeric_cols
+        selected_option = st.selectbox("Select Feature / Display Mode", options=column_options)
+
+    with col2:
+        # Selection slider to pick a range of months (default: first month)
+        if len(available_months) > 1:
+            default_selection = (available_months[0], available_months[0])
+            selected_months = st.select_slider(
+                "Select Month Range",
+                options=available_months,
+                value=default_selection
+            )
+        else:
+            selected_months = (available_months[0], available_months[0])
+
+    # Filter dataset according to slider selection
+    start_m, end_m = selected_months
+    filtered_df = df[(df['year_month'] >= start_m) & (df['year_month'] <= end_m)]
+
+    st.markdown(f"**Showing data from {start_m} to {end_m}** ({len(filtered_df)} records)")
+
+    # Plotting Section
+    fig, ax = plt.subplots(figsize=(10, 4.5))
+
+    if selected_option == "All Columns Together":
+        # Normalize numeric columns to 0-1 scale to display together accurately
+        norm_df = filtered_df[numeric_cols].apply(lambda x: (x - x.min()) / (x.max() - x.min() + 1e-9))
+        for col in numeric_cols:
+            ax.plot(filtered_df['date_id'], norm_df[col], label=col, alpha=0.7)
+        ax.set_title(f"Normalized Trends for All Metrics ({start_m} to {end_m})", fontsize=12, fontweight='bold')
+        ax.set_ylabel("Normalized Value (0 - 1)")
+        ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+
     else:
-        df_filtered = df.sort_values(primary_date)
+        ax.plot(filtered_df['date_id'], filtered_df[selected_option], color="#0066cc", linewidth=1.8)
+        ax.set_title(f"Trend of '{selected_option}' ({start_m} to {end_m})", fontsize=12, fontweight='bold')
+        ax.set_ylabel(selected_option)
 
-    st.subheader(f"Area Fill Dynamics: {selected_area if area_field else 'All Regions'}")
-
-    fig, ax = plt.subplots(figsize=(12, 4.5), dpi=150)
-    
-    ax.plot(
-        df_filtered[primary_date],
-        df_filtered["fill_ratio"],
-        color="#0F62FE",
-        linewidth=2,
-        label="Fill Ratio",
-    )
-    ax.fill_between(
-        df_filtered[primary_date],
-        df_filtered["fill_ratio"],
-        color="#0F62FE",
-        alpha=0.12,
-    )
-
-    ax.set_ylabel("Fill Ratio (0–1)", fontsize=9.5, fontweight="bold")
-    ax.set_ylim(0, 1.05)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.spines["left"].set_color(text_color)
-    ax.spines["bottom"].set_color(text_color)
-
-    ax.xaxis.set_major_locator(mdates.AutoDateLocator(minticks=4, maxticks=8))
-    ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(ax.xaxis.get_major_locator()))
-
-    legend = ax.legend(loc="upper left", frameon=True, fontsize=8.5)
-    legend.get_frame().set_facecolor(card_bg)
-    legend.get_frame().set_edgecolor("none")
-    for text in legend.get_texts():
-        text.set_color(text_color)
-
+    ax.set_xlabel("Date")
+    plt.xticks(rotation=45)
     plt.tight_layout()
+
     st.pyplot(fig)
 
 except Exception as e:
-    st.error(f"Error loading Area Analytics: {e}")
+    st.error(f"Error rendering plot: {e}")
