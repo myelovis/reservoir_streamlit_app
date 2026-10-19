@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import streamlit as st
 from transfer_data import load_transfers
-from transfer_plots import annual_totals, energy_donut, power_lines
+from transfer_plots import annual_totals, energy_donut, power_lines, clip_intervals
 
 st.set_page_config(page_title="Electricity Transfers", layout="wide")
 st.title("Norway–Denmark electricity transfers")
@@ -12,9 +12,14 @@ st.caption("Streamlit reads nve.simple_transfers, published by notebook section 
 if st.button("Refresh transfer data"):
     load_transfers.clear()
 try:
-    df = load_transfers()
+    st.secrets["MONGO_URI"]
 except (KeyError, FileNotFoundError):
     st.info("Add MONGO_URI to Streamlit Secrets before opening the transfer data.")
+    st.stop()
+try:
+    df = load_transfers()
+except (KeyError, ValueError):
+    st.error("Check the MongoDB records: dates, power, duration and energy must be valid, with no overlapping intervals. Then rerun notebook publication.")
     st.stop()
 except Exception:
     st.error("MongoDB could not be read. Check the Atlas URI, database-user permissions and network access.")
@@ -28,31 +33,42 @@ left, right = st.columns(2)
 with left:
     connection = st.radio("Connection", sorted(df.connection.unique()))
     connection_df = df.loc[df.connection.eq(connection)]
-    years = sorted(connection_df.year.unique(), reverse=True)
+    finish = connection_df.time + pd.to_timedelta(connection_df.hours, unit="h")
+    start_years = connection_df.time.dt.tz_convert("Europe/Oslo").dt.year
+    end_years = (finish - pd.Timedelta(nanoseconds=1)).dt.tz_convert("Europe/Oslo").dt.year
+    years = sorted(set(start_years) | set(end_years), reverse=True)
     completed = pd.Timestamp.now(tz="Europe/Oslo").year - 1
     default = years.index(completed) if completed in years else 0
     year = int(st.selectbox("Year", years, index=default))
-    annual = connection_df.loc[connection_df.year.eq(year)]
+    annual = clip_intervals(connection_df,
+        pd.Timestamp(year=year, month=1, day=1, tz="Europe/Oslo"),
+        pd.Timestamp(year=year+1, month=1, day=1, tz="Europe/Oslo"))
     totals = annual_totals(annual, year)
-    st.dataframe(totals.rename(index={"in":"Into Norway", "out":"Out of Norway"}), width="stretch")
+    st.dataframe(totals.rename(index={"in":"Into Norway", "out":"Out of Norway"}), width="stretch",
+        column_config={"energy_mwh":st.column_config.NumberColumn("Energy (MWh)", format="%.2f"),
+            "reported_hours":st.column_config.NumberColumn("Reported hours", format="%.2f"),
+            "coverage_pct":st.column_config.NumberColumn("Coverage (%)", format="%.2f")})
     if len(totals) < 2 or (totals.coverage_pct < 99.999).any():
         st.warning("Incomplete annual coverage. The chart shows reported totals, not a complete annual balance.")
     if (totals.coverage_pct > 100.001).any():
         st.warning("Coverage exceeds 100%. Check the notebook output for overlapping or duplicate intervals.")
-    if totals.energy_mwh.sum() > 0:
+    if set(totals.index) == {"in", "out"} and totals.energy_mwh.sum() > 0:
         fig = energy_donut(totals, year)
         st.pyplot(fig)
         plt.close(fig)
     else:
-        st.info("No positive reported energy to plot for this year.")
+        st.info("The import/export donut requires both directions and a positive total. See the reported values above.")
 
 with right:
     months = st.pills("Months", list(range(1, 13)), selection_mode="multi",
                       default=[1], format_func=lambda m: calendar.month_abbr[m])
     st.caption(f"Selected year: {year}. January is the notebook's default analysis month.")
-    if months and annual.time.dt.tz_convert("Europe/Oslo").dt.month.isin(months).any():
+    if months:
         fig = power_lines(annual, months)
-        st.pyplot(fig)
+        if fig.axes[0].lines:
+            st.pyplot(fig)
+        else:
+            st.info("No reported intervals overlap these months.")
         plt.close(fig)
     else:
         st.info("Select months with reported observations.")
@@ -70,6 +86,8 @@ with st.expander("Data source and method"):
     **Coverage:** reported hours are compared with the complete calendar year
     (8,760 hours, or 8,784 in a leap year). Missing periods are not filled with zero.
     The lines show measured intervals without bridging gaps or unselected months.
+    Intervals crossing a selected month or year are clipped to its boundaries;
+    energy is calculated from only the included duration.
 
     **Publication:** MongoDB upserts are batched, not an atomic snapshot. Refresh after
     the notebook finishes and confirms its saved record count. This example covers
@@ -77,4 +95,5 @@ with st.expander("Data source and method"):
     """)
     st.link_button("ENTSO-E API reference", "https://documenter.getpostman.com/view/7009892/2s93JtP3F6")
 st.subheader("Spark-extracted records")
+st.caption("First 100 records in the selected year. Boundary intervals show only the included duration and energy.")
 st.dataframe(annual.head(100), width="stretch")
