@@ -41,6 +41,5 @@ page = st.navigation([
     ),
 ])
 
-st.sidebar.info("Select a page above to explore the data.")
 
 page.run()
