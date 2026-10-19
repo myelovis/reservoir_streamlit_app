@@ -1,11 +1,16 @@
 import streamlit as st
 
-st.set_page_config(
-    page_title="Hydropower Reservoir Dashboard",  # Fixed typo here
-    page_icon="🌊",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
+st.set_page_config(page_title="Reservoirs and Electricity", layout="wide")
+
+page = st.navigation([
+    st.Page("pages/1_Reservoir_Table.py",
+            title="Megasinstatistikk Data Overview", default=True),
+    st.Page("pages/2_Reservoir_Plots.py",
+            title="Megasinstatistikk Data Filter"),
+    st.Page("pages/3_Electricity_Transfers.py",
+            title="Entsoe Electric Transfer Report"),
+])
+page.run()
 
 st.title("🌊 Norwegian Hydropower Reservoirs Dashboard")
 st.subheader("IND320-1 Data til Beslutning — Project Part 1")
