@@ -19,9 +19,9 @@ st.markdown(
     ### 📌 Navigation
     Use the sidebar menu on the left to navigate between pages:
     * **Home**: Project overview and system introduction.
-    * **Page 1 - Data Overview**: Tabular view of reservoir metrics with embedded line charts.
-    * **Page 2 - Interactive Visualizations**: Detailed trend analysis with dynamic subset filtering.
-    * **Page 3 - Summary & Analytics**: Aggregated insights and metric distributions.
+    * **Page 1 - Data Overview**: Megasinstatistikk Reservoir metrics with embedded line charts.
+    * **Page 2 - Interactive Visualizations**: Detailed trend analysis with Megasinstatistikk Reservoir.
+    * **Page 3 - Summary & Analytics**: EntsoE Data.
     """
 )
 
