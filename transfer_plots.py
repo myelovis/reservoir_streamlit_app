@@ -49,29 +49,75 @@ def energy_donut(totals, year):
     fig.tight_layout()
     return fig
 
+from zoneinfo import ZoneInfo
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+
 def power_lines(annual, months):
-    year = int(annual.year.iloc[0])
+    if annual.empty:
+        fig, ax = plt.subplots(figsize=(11, 4.5), facecolor="#FCFCFC")
+        ax.set(title="NO2–DK1: reported power flows", xlabel="Time (Europe/Oslo)", ylabel="Power (MW)")
+        ax.grid(linestyle="--", alpha=0.3)
+        fig.tight_layout()
+        return fig
+
+    # Safely extract the year from time column
+    year = int(annual.time.dt.tz_convert("Europe/Oslo").dt.year.iloc[0])
+    
     frames = []
     for month in sorted(set(months)):
         start = pd.Timestamp(year=year, month=month, day=1, tz="Europe/Oslo")
-        frames.append(clip_intervals(annual, start, start + pd.DateOffset(months=1)))
-    selected = pd.concat(frames).sort_values("time") if frames else annual.iloc[:0]
+        # clip_intervals filters data for each month
+        month_data = clip_intervals(annual, start, start + pd.DateOffset(months=1))
+        if not month_data.empty:
+            frames.append(month_data)
+
+    if frames:
+        selected = pd.concat(frames).sort_values("time")
+    else:
+        selected = annual.iloc[:0]
+
     fig, ax = plt.subplots(figsize=(11, 4.5), facecolor="#FCFCFC")
-    for direction, group in selected.groupby("direction"):
-        # Vectorized interval segments retain the measured duration and gaps.
-        starts = mdates.date2num(group.time.to_numpy())
-        ends = starts + group.hours.to_numpy()/24
-        gaps = np.full(len(group), np.nan)
-        x = np.column_stack([starts, ends, gaps]).ravel()
-        y = np.column_stack([group.power_mw, group.power_mw, gaps]).ravel()
-        ax.plot(x, y, color=COLORS[direction], linewidth=1.2,
-                label=f"NO2–DK1: {LABELS[direction]}")
-    locator = mdates.AutoDateLocator(tz=ZoneInfo("Europe/Oslo"))
-    ax.xaxis.set_major_locator(locator)
-    ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(
-        locator, tz=ZoneInfo("Europe/Oslo")))
-    ax.set(title="NO2–DK1: reported power flows",
-           xlabel="Time (Europe/Oslo)", ylabel="Power (MW)")
+
+    if not selected.empty:
+        for direction, group in selected.groupby("direction"):
+            # Sort chronologically to preserve time continuity
+            group = group.sort_values("time")
+            
+            # Construct start and end timestamps for intervals
+            starts = group.time.to_numpy()
+            ends = (group.time + pd.to_timedelta(group.hours, unit="h")).to_numpy()
+            
+            # Interleave start and end times to plot continuous step lines
+            x = np.column_stack([starts, ends]).ravel()
+            y = np.column_stack([group.power_mw, group.power_mw]).ravel()
+            
+            # Plot continuous line representation
+            ax.plot(
+                x, y,
+                color=COLORS.get(direction, "#1f77b4"),
+                linewidth=1.5,
+                label=f"NO2–DK1: {LABELS.get(direction, direction)}"
+            )
+
+        locator = mdates.AutoDateLocator(tz=ZoneInfo("Europe/Oslo"))
+        ax.xaxis.set_major_locator(locator)
+        ax.xaxis.set_major_formatter(
+            mdates.ConciseDateFormatter(locator, tz=ZoneInfo("Europe/Oslo"))
+        )
+        ax.legend(fontsize=9)
+
+    ax.set(
+        title="NO2–DK1: reported power flows",
+        xlabel="Time (Europe/Oslo)",
+        ylabel="Power (MW)"
+    )
+    ax.grid(linestyle="--", alpha=0.3)
+    fig.tight_layout()
+    
+    return fig
     if not selected.empty:
         ax.legend(fontsize=9)
     ax.grid(linestyle="--", alpha=0.3)
