@@ -1,4 +1,4 @@
-import calendar
+import calendar  # Added missing import
 import pandas as pd
 import matplotlib.pyplot as plt
 import streamlit as st
@@ -11,13 +11,16 @@ st.title("Entsoe Electric Transfer Report")
 st.caption("Norway NO2 ↔ Denmark DK1")
 st.caption("ENTSO-E → Spark → Cassandra → Spark → MongoDB → Streamlit")
 st.caption("Streamlit reads nve.simple_transfers, published by notebook section 6.2.")
+
 if st.button("Refresh transfer data"):
     load_transfers.clear()
+
 try:
     mongo_uri = st.secrets["MONGO_URI"]
 except (KeyError, FileNotFoundError):
     st.info("Add MONGO_URI to Streamlit Secrets before opening the transfer data.")
     st.stop()
+
 try:
     df = load_transfers()
 except (KeyError, ValueError):
@@ -38,12 +41,15 @@ except ServerSelectionTimeoutError:
 except Exception:
     st.error("MongoDB could not be read. Check the Atlas URI, database-user permissions and network access.")
     st.stop()
+
 if df.empty:
     st.info("No NO2–DK1 records found in the last two years. Run notebook sections 4–6.2 to publish them.")
     st.stop()
 
 st.caption(f"Available observations: {df.time.min():%Y-%m-%d} to {df.time.max():%Y-%m-%d} (UTC).")
+
 left, right = st.columns(2)
+
 with left:
     connection = st.radio("Connection", sorted(df.connection.unique()))
     connection_df = df.loc[df.connection.eq(connection)]
@@ -54,18 +60,29 @@ with left:
     completed = pd.Timestamp.now(tz="Europe/Oslo").year - 1
     default = years.index(completed) if completed in years else 0
     year = int(st.selectbox("Year", years, index=default))
-    annual = clip_intervals(connection_df,
+    
+    annual = clip_intervals(
+        connection_df,
         pd.Timestamp(year=year, month=1, day=1, tz="Europe/Oslo"),
-        pd.Timestamp(year=year+1, month=1, day=1, tz="Europe/Oslo"))
+        pd.Timestamp(year=year+1, month=1, day=1, tz="Europe/Oslo")
+    )
     totals = annual_totals(annual, year)
-    st.dataframe(totals.rename(index={"in":"Into Norway", "out":"Out of Norway"}), width="stretch",
-        column_config={"energy_mwh":st.column_config.NumberColumn("Energy (MWh)", format="%.2f"),
-            "reported_hours":st.column_config.NumberColumn("Reported hours", format="%.2f"),
-            "coverage_pct":st.column_config.NumberColumn("Coverage (%)", format="%.2f")})
+    
+    st.dataframe(
+        totals.rename(index={"in": "Into Norway", "out": "Out of Norway"}),
+        use_container_width=True,
+        column_config={
+            "energy_mwh": st.column_config.NumberColumn("Energy (MWh)", format="%.2f"),
+            "reported_hours": st.column_config.NumberColumn("Reported hours", format="%.2f"),
+            "coverage_pct": st.column_config.NumberColumn("Coverage (%)", format="%.2f")
+        }
+    )
+    
     if len(totals) < 2 or (totals.coverage_pct < 99.999).any():
         st.warning("Incomplete annual coverage. The chart shows reported totals, not a complete annual balance.")
     if (totals.coverage_pct > 100.001).any():
         st.warning("Coverage exceeds 100%. Check the notebook output for overlapping or duplicate intervals.")
+        
     if set(totals.index) == {"in", "out"} and totals.energy_mwh.sum() > 0:
         fig = energy_donut(totals, year)
         st.pyplot(fig)
@@ -74,9 +91,15 @@ with left:
         st.info("The import/export donut requires both directions and a positive total. See the reported values above.")
 
 with right:
-    months = st.pills("Months", list(range(1, 13)), selection_mode="multi",
-                      default=[1], format_func=lambda m: calendar.month_abbr[m])
+    months = st.pills(
+        "Months",
+        list(range(1, 13)),
+        selection_mode="multi",
+        default=[1],
+        format_func=lambda m: calendar.month_abbr[m]
+    )
     st.caption(f"Selected year: {year}. January is the notebook's default analysis month.")
+    
     if months:
         fig = power_lines(annual, months)
         if fig.axes[0].lines:
@@ -108,6 +131,7 @@ with st.expander("Data source and method"):
     one international connection, not all Norwegian imports and exports.
     """)
     st.link_button("ENTSO-E API reference", "https://documenter.getpostman.com/view/7009892/2s93JtP3F6")
+
 st.subheader("Spark-extracted records")
 st.caption("First 100 records in the selected year. Boundary intervals show only the included duration and energy.")
-st.dataframe(annual.head(100), width="stretch")
+st.dataframe(annual.head(100), use_container_width=True)
