@@ -1,0 +1,18 @@
+
+### Streamlit Atlas Connection Fix
+
+**1. MongoDB Atlas Access**
+
+* [Green Left Panel] -> **Security** → **Network Access** → **+ Add IP Address**
+* Click **Allow Access From Anywhere** (`0.0.0.0/0`) → Set valid to 7 days -> **Confirm**
+
+**2. Streamlit Secrets**
+
+* App Settings → Secrets
+* Add connection string:
+`uri = "mongodb+srv://<user>:<password>@<cluster>.mongodb.net/<db>?retryWrites=true&w=majority"`
+* URL-encode special characters in password (e.g., `@` $\rightarrow$ `%40`)
+
+**3. Verify**
+
+* Wait 1–2 mins for Atlas status to show **Active** → Rerun Streamlit app
