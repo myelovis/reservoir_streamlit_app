@@ -6,8 +6,9 @@ from pymongo.errors import ConfigurationError, OperationFailure, ServerSelection
 from transfer_data import load_transfers
 from transfer_plots import annual_totals, energy_donut, power_lines, clip_intervals
 
-st.set_page_config(page_title="Electricity Transfers", layout="wide")
-st.title("Norway–Denmark electricity transfers")
+st.set_page_config(page_title="Entsoe Electric Transfer Report", layout="wide")
+st.title("Entsoe Electric Transfer Report")
+st.caption("Norway NO2 ↔ Denmark DK1")
 st.caption("ENTSO-E → Spark → Cassandra → Spark → MongoDB → Streamlit")
 st.caption("Streamlit reads nve.simple_transfers, published by notebook section 6.2.")
 if st.button("Refresh transfer data"):
