@@ -2,6 +2,7 @@ import calendar
 import pandas as pd
 import matplotlib.pyplot as plt
 import streamlit as st
+from pymongo.errors import ConfigurationError, OperationFailure, ServerSelectionTimeoutError
 from transfer_data import load_transfers
 from transfer_plots import annual_totals, energy_donut, power_lines, clip_intervals
 
@@ -12,7 +13,7 @@ st.caption("Streamlit reads nve.simple_transfers, published by notebook section 
 if st.button("Refresh transfer data"):
     load_transfers.clear()
 try:
-    st.secrets["MONGO_URI"]
+    mongo_uri = st.secrets["MONGO_URI"]
 except (KeyError, FileNotFoundError):
     st.info("Add MONGO_URI to Streamlit Secrets before opening the transfer data.")
     st.stop()
@@ -20,6 +21,18 @@ try:
     df = load_transfers()
 except (KeyError, ValueError):
     st.error("Check the MongoDB records: dates, power, duration and energy must be valid, with no overlapping intervals. Then rerun notebook publication.")
+    st.stop()
+except ConfigurationError:
+    st.error("The MongoDB URI or DNS configuration is invalid. Check MONGO_URI in Streamlit Secrets.")
+    st.stop()
+except OperationFailure as error:
+    if error.code == 18:
+        st.error("Atlas authentication failed. Check the database username and password in Streamlit Secrets.")
+    else:
+        st.error("Atlas rejected the database operation. Check that this database user can read nve.simple_transfers.")
+    st.stop()
+except ServerSelectionTimeoutError:
+    st.error("Atlas could not be reached. Check that the cluster is active and that Atlas Network Access permits this deployment's connection.")
     st.stop()
 except Exception:
     st.error("MongoDB could not be read. Check the Atlas URI, database-user permissions and network access.")
