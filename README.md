@@ -26,9 +26,9 @@ An interactive, multi-page Streamlit web application for analyzing, visualizing,
 
 ```text
 reservoir_streamlit_app/
-├── app.py                          # Main landing page / app entrance
-├── utils.py                        # Shared data loader and caching utility functions
-├── reservoirs.csv                  # Primary Norwegian reservoir dataset
+├── app.py                                  # Main landing page / app entrance
+├── utils.py                                   # Shared data loader and caching utility functions
+├── Megasinstatistikk and ENTSOE APIs                  
 ├── requirements.txt                # Python library dependencies
 └── pages/
     ├── 1_Data_Overview.py          # Feature summary table & sparkline trends
