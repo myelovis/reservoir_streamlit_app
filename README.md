@@ -25,12 +25,18 @@ An interactive, multi-page Streamlit web application for analyzing, visualizing,
 ## Project Structure
 
 ```text
-reservoir_streamlit_app/
-├── app.py                                  # Main landing page / app entrance
-├── utils.py                                   # Shared data loader and caching utility functions
-├── Megasinstatistikk and ENTSOE APIs                  
-├── requirements.txt                # Python library dependencies
-└── pages/
-    ├── 1_Data_Overview.py          # Feature summary table & sparkline trends
-    ├── 2_Interactive_Visualizations.py # Custom time-window plot controls
-    └── 3_Summary_Analytics.py      # Grid subplots & dual-axis national trend analysis
+.
+├── .devcontainer/              # Development container configuration files
+├── pages/                      # Multi-page Streamlit views
+│   ├── 1_Reservoir_Table.py    # Reservoir table data page
+│   ├── 2_Reservoir_Plots.py    # Reservoir plotting page
+│   ├── 3_Electricity_Transfers.py # Electricity transfers page
+│   └── technotes.txt           # Technical notes for pages
+├── README.md                   # Project documentation
+├── app.py                      # Main application entry point
+├── requirements.txt            # Python dependencies
+├── reservoir_data.py           # Reservoir data processing modules
+├── technote.txt                # General technical notes
+├── transfer_data.py            # Data fetching/processing for transfers
+├── transfer_plots.py           # Plotting utilities for transfers
+└── utils.py                    # Helper functions and shared utilities
