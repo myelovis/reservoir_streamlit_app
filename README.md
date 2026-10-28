@@ -1,116 +1,259 @@
-# Norwegian Hydropower, Weather and Electricity Dashboard
+# Norwegian Reservoirs, Weather and Electricity Dashboard
 
-## Part 3: new analysis pages
+Streamlit application for the IND320 Data til Beslutning project,
+combining work from Parts 1, 2 and 3.
 
-Navigation is grouped in this order: **Home → Reservoir Overview → Reservoir Plots → Reservoir Patterns → Weather Outliers → Electricity Transfers**. The existing transfer report and its MongoDB configuration are unchanged.
+The dashboard explores Norwegian reservoir filling, electricity transfers,
+and weather patterns using NVE, ENTSO-E and ERA5 data.
 
-The area selector is shared by the reservoir table, reservoir plots and both new pages. A selection made on Reservoir Plots carries into the analysis pages. Weather currently supports electricity areas **EL 1–5** (NO1–NO5); choosing national or watercourse data shows an explanation rather than substituting another region's weather.
+## Project Parts
 
-### Run locally
+### Part 1 — Reservoir Exploration
+
+The reservoir pages provide:
+
+- Tables of reservoir measurements and metadata.
+- Sparklines for numerical measurements in the first available month.
+- Selection of national, electricity-area or watercourse data.
+- Interactive filtering by month.
+- Individual measurements or combined, min–max-scaled plots.
+
+Reservoir measurements include filling fraction, capacity, stored energy,
+previous-week filling and weekly filling change.
+
+The original reservoir pages display filling as a fraction:
+**0.60 means 60%**. The Part 3 decomposition displays percentages.
+
+### Part 2 — APIs and Electricity Transfers
+
+Reservoir observations are retrieved directly from the NVE
+Magasinstatistikk API.
+
+Electricity-transfer data follows the project pipeline:
+
+**ENTSO-E → Spark → Cassandra → Spark → MongoDB → Streamlit**
+
+Data preparation and publication take place outside the dashboard.
+Streamlit reads the published transfer results from MongoDB.
+
+The Electricity Transfers page provides:
+
+- Import/export energy summaries.
+- Annual transfer visualisation.
+- Power-flow plots for the selected period.
+- Coverage of the Norway NO2–Denmark DK1 connection.
+
+Imports and exports represent exchanged electricity, not domestic production.
+
+### Part 3 — Weather and Time-Series Analysis
+
+#### Spatial Sampling and ERA5
+
+The ERA5 module:
+
+1. Selects an electricity area from the NVE boundary data.
+2. Samples 1,000 reproducible locations uniformly by area.
+3. Retrieves hourly historical ERA5 temperature and precipitation
+   through Open-Meteo.
+4. Reuses weather series when multiple locations share an ERA5 grid cell.
+5. Calculates regional averages weighted by sample counts.
+6. Saves completed downloads so interrupted runs can resume.
+
+The required test dataset is **NO3, full-year 2024**:
+8,784 hourly observations because 2024 is a leap year.
+
+Spatial sampling, regional grouping, maps and detailed analysis are also
+documented in the project notebook. The East/West/North grouping follows
+the assignment's mapping:
+
+- East = RS + RØ
+- West = RV
+- North = RM + RN
+
+These are merged NVE administrative polygons. They are distinct from
+the electricity areas NO1–NO5.
+
+#### Reservoir Patterns Page
+
+Two tabs analyse weekly NVE reservoir filling data:
+
+| Tab | Analysis | Default controls |
+|---|---|---|
+| STL decomposition | Observed filling, trend, seasonal component and residuals | Seasonal smoother 13; trend smoother 89; robust fitting enabled |
+| Spectrogram | Changes in periodic behaviour over time | Window 104 weeks; overlap 78 weeks |
+
+An approximate 52-week annual cycle is used. The analysis period is
+selectable, and missing weeks are reported rather than silently filled.
+
+#### Weather Outliers Page
+
+Two tabs analyse full-year hourly ERA5 regional averages:
+
+| Tab | Analysis | Default controls |
+|---|---|---|
+| Precipitation SPC | DCT high-pass filtering and robust SPC boundaries | Cutoff period 30 days; multiplier 3 robust standard deviations |
+| Temperature LOF | Local Outlier Factor anomaly detection | Target anomaly proportion 1%; 20 neighbours |
+
+Both tabs provide plots, counts, percentages, flagged observations
+and CSV downloads.
+
+Filtered precipitation residuals are used internally to calculate
+boundaries and identify outliers. They are **not plotted**.
+
+LOF compares neighbours in temperature-value space; it does not explicitly
+model seasonal or temporal context. Flagged observations are not
+automatically data errors.
+
+## Navigation
+
+1. Home
+2. Reservoir Overview
+3. Reservoir Plots
+4. Reservoir Patterns
+   - STL decomposition
+   - Spectrogram
+5. Weather Outliers
+   - Precipitation SPC
+   - Temperature LOF
+6. Electricity Transfers
+
+The area selection is shared across the reservoir and analysis pages.
+Weather analysis currently supports electricity areas NO1–NO5.
+Missing weather for another area is not replaced with NO3 data.
+
+## Repository Structure
+
+```text
+app.py
+reservoir_data.py
+analysis.py
+weather_data.py
+era5_module.py
+prepare_weather.py
+transfer_data.py
+transfer_plots.py
+requirements.txt
+
+pages/
+    1_Reservoir_Table.py
+    2_Reservoir_Plots.py
+    3_Electricity_Transfers.py
+    4_Reservoir_Patterns.py
+    5_Weather_Outliers.py
+
+data/
+    weather/
+        NO3_2024.csv
+
+tests/
+    test_analysis.py
+    test_pages.py
+```
+
+The weather CSV must be supplied from the completed notebook download
+or generated using the preparation command below.
+
+## Run Locally
 
 ```bash
 pip install -r requirements.txt
 streamlit run app.py
 ```
 
-### Reservoir Patterns: STL and Spectrogram
+## Add the Completed NO3 Weather Data
 
-This page fetches the selected area's weekly filling series directly from NVE and defaults to the latest five years. Its tabs expose:
-
-- **STL:** seasonal smoother (13), trend smoother (89 weeks), and robust fitting (true). Annual seasonality uses an approximate 52-week period. Plots show observed filling, trend, seasonality and residuals. Components can be downloaded.
-- **Spectrogram:** window length (104 weeks) and overlap (78 weeks). The annual frequency is marked at one cycle/year. Spectral power can be downloaded.
-
-At least two years are needed for STL, and at least two full windows for the spectrogram. Missing weeks, duplicate dates, non-finite data and invalid parameters produce an explanatory message; observations are not silently interpolated. Extend the analysis period when needed.
-
-### Weather Outliers: use your completed NO3 notebook download
-
-The fastest route is to reuse your actual **1,000-location NO3, 2024** regional averages. No sample or invented weather dataset is shipped.
-
-Choose **EL → 3 → 2024**, open **Load weather data**, and upload:
+Copy:
 
 ```text
 weather_fast/NO3_2024-01-01_2024-12-31_1000pts/regional_hourly_mean.csv
 ```
 
-Alternatively place that file at **data/weather/NO3_2024.csv** in this repository and commit the small CSV on your temporary branch. Existing `weather_fast` folders placed beside `app.py` are also recognised. Files must have columns `time`, `temperature_2m`, `precipitation` and exactly all 8,784 unique UTC hours of 2024 (8,760 for non-leap years). An optional `region_id` column is checked against the selected area. If the column is absent, an upload is explicitly labelled by the user for the selected region/year; its geographic provenance cannot be inferred from weather values alone.
+to:
 
-Each region/year has its own file and upload state. There is **no fallback from a missing NO4 dataset to NO3**. Uploads last for the browser session; place exports in `data/weather` to make them available after deployment/restart. Changes to sliders and tabs do not initiate API downloads.
+```text
+data/weather/NO3_2024.csv
+```
 
-The two weather tabs expose:
+The CSV must contain:
 
-- **Precipitation SPC:** cutoff period (30 days), robust standard-deviation multiplier (3), outlier count/share, robust sigma, flagged observations and CSV download. The DCT high-pass residuals (called SATV in the brief) are used internally, not plotted. Median and normal-scaled MAD are estimated from the entire chosen year. Limits are shown in original precipitation units; negative lower limits are statistical boundaries, not negative rainfall.
-- **Temperature LOF:** target anomaly proportion (1%), neighbour count (20), actual anomaly count/share, LOF scores and CSV download. The method uses neighbours in temperature-value space, not a seasonally adjusted temporal model. Ties can affect the actual anomaly proportion. Flagged values are not automatically data errors.
+```text
+time,temperature_2m,precipitation
+```
 
-### Prepare a missing ERA5 export using the API
+An optional `region_id` column is checked against the selected area.
 
-The included `era5_module.py` samples 1,000 locations per electricity area, discovers shared ERA5 grid cells, downloads each unique cell's series, and weights cells by sample counts when calculating regional means. Requests explicitly select `models=era5`, UTC, nearest cells, and disable elevation adjustment. Data is cached per region and time interval. It uses the existing electricity shapefile when placed beside the module; otherwise it reads the same official NVE electricity layer directly. Optional local shapefile components are ignored by Git.
+The app validates that the file contains all unique consecutive UTC hours
+of the selected year, finite weather values and non-negative precipitation.
 
-Run outside Streamlit for a long download:
+Alternatively, upload the CSV through **Load weather data** on the
+Weather Outliers page. Select **EL → 3 → 2024** for the NO3 export.
+Uploads are session-specific; a committed CSV remains available
+after deployment.
+
+## Prepare Weather Data Through the API
+
+For a missing dataset:
 
 ```bash
 python prepare_weather.py --region NO3 --year 2024
 ```
 
-This publishes `data/weather/NO3_2024.csv`. On interruption or an API quota failure, rerun to reuse completed cells. Open-Meteo's rate limits apply; long periods and multiple locations count as multiple calls. There is also an explicit **Fetch** button in the weather page for environments able to keep the session running, but a full-year preparation should normally be done before cloud deployment. A five-year reservoir analysis does not require five years of ERA5 data.
+This generates:
 
-### Tests
+```text
+data/weather/NO3_2024.csv
+```
+
+The module uses the electricity shapefile when available beside it.
+Otherwise, it retrieves the official NVE electricity polygons directly.
+
+Long downloads are best run outside Streamlit. An explicit Fetch button
+is also available in the weather page. API quotas apply, and changing
+plot controls does not automatically start another download.
+
+## Streamlit Deployment
+
+- Use `app.py` as the entry point.
+- Install dependencies from `requirements.txt`.
+- Include the completed regional weather CSV for immediate weather plots.
+- Configure `MONGO_URI` in Streamlit Secrets for the transfer page.
+- Keep changes on a temporary branch until the required peer review
+  and feedback are completed.
+
+Never commit passwords, `.env`, or `.streamlit/secrets.toml`.
+The large raw `weather_fast/` directory does not need to be uploaded;
+the regional-average export is sufficient for the weather analyses.
+
+## Tests
 
 ```bash
 pip install pytest
 python -m pytest -q tests
 ```
 
-Tests use clearly labelled synthetic fixtures only. They check STL reconstruction and annual seasonality, an annual spectral peak, an injected precipitation/temperature anomaly, full-year validation, region isolation, both Streamlit tab pages, invalid controls and selector persistence across pages. Synthetic fixtures never feed the running dashboard.
+Tests cover:
 
-### Sources and attribution
+- STL reconstruction and annual seasonality.
+- Detection of an annual spectral peak.
+- Injected precipitation and temperature anomalies.
+- Full-year weather validation and region isolation.
+- Streamlit tabs, controls and shared area selection.
 
-- [NVE Magasinstatistikk API](https://biapi.nve.no/magasinstatistikk/swagger/index.html): reservoir observations.
-- [NVE electricity boundary layer](https://kart.nve.no/enterprise/rest/services/Nettomraader/MapServer/0): NO1–NO5 shapefile, downloaded 27 October 2026. Source: Norges vassdrags- og energidirektorat (NVE); [NLOD](https://data.norge.no/nlod/no/). Boundary vintage has not been independently checked for historical changes.
-- [Open-Meteo Historical Weather API](https://open-meteo.com/en/docs/historical-weather-api): ECMWF ERA5 weather, via Open-Meteo. Attribute Open-Meteo and the ERA5 data source when exporting/sharing results; see its data licences and usage limits.
+Test fixtures are synthetic and are never used as dashboard data.
 
-The branch is intended for peer review before merging into `main`. Setting up the app does not update your existing Streamlit deployment automatically.
+## Data Sources and Attribution
 
----
+- [NVE Magasinstatistikk](https://biapi.nve.no/magasinstatistikk/swagger/index.html):
+  reservoir observations.
+- [NVE Atlas](https://atlas.nve.no/):
+  geographic boundaries.
+- [Open-Meteo Historical Weather API](https://open-meteo.com/en/docs/historical-weather-api):
+  hourly ECMWF ERA5 reanalysis.
+- [ENTSO-E Transparency Platform](https://transparency.entsoe.eu/):
+  electricity-transfer observations.
 
-## Earlier project overview
+Acknowledge NVE, Open-Meteo, ECMWF ERA5 and ENTSO-E when presenting
+their data, and follow the applicable licences and API usage conditions.
 
-An interactive, multi-page Streamlit web application for analyzing, visualizing, and inspecting historical reservoir water levels, energy storage capacity (TWh), and fill ratios across Norway's bidding zones.
-
----
-
-## Features
-
-- **Data Overview (`1_Data_Overview.py`)**:
-  - Tabular view of numerical features with summary statistics (Count, Mean, Min, Max).
-  - Embedded inline sparklines (`LineChartColumn`) displaying early trend dynamics across the first 30 days.
-
-- **Interactive Visualizations (`2_Interactive_Visualizations.py`)**:
-  - Custom date range selection using monthly sliders.
-  - Granular single-feature inspection or normalized multi-feature comparison.
-  - High-contrast dark theme styling with a sleek black plot canvas.
-
-- **Summary Analytics (`3_Summary_Analytics.py`)**:
-  - Publication-quality grid subplots for individual time series metrics with directional delta color fills (inflow/outflow).
-  - Dual $y$-axis overlay chart combining total storage/capacity (TWh) and national mean fill ratio on different scales.
-  - Dynamic UI theme integration for seamless plot-to-app background blending.
-
----
-
-## Project Structure
-
-```text
-.
-├── .devcontainer/              # Development container configuration files
-├── pages/                      # Multi-page Streamlit views
-│   ├── 1_Reservoir_Table.py    # Reservoir table data page
-│   ├── 2_Reservoir_Plots.py    # Reservoir plotting page
-│   ├── 3_Electricity_Transfers.py # Electricity transfers page
-│   └── technotes.txt           # Technical notes for pages
-├── README.md                   # Project documentation
-├── app.py                      # Main application entry point
-├── requirements.txt            # Python dependencies
-├── reservoir_data.py           # Reservoir data processing modules
-├── technote.txt                # General technical notes
-├── transfer_data.py            # Data fetching/processing for transfers
-├── transfer_plots.py           # Plotting utilities for transfers
-└── utils.py                    # Helper functions and shared utilities
+The project notebook contains the work log, methodological assumptions,
+analysis results and AI-use documentation.
