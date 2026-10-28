@@ -257,3 +257,8 @@ their data, and follow the applicable licences and API usage conditions.
 
 The project notebook contains the work log, methodological assumptions,
 analysis results and AI-use documentation.
+
+## Local Database Solution
+
+Publish the completed NO3 ERA5 regional averages to MongoDB Atlas so
+Streamlit can load them without CSV files in GitHub.
