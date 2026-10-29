@@ -1,10 +1,9 @@
-"""Read region-specific ERA5 exports from the notebook or prepare them on demand."""
-from pathlib import Path
-from io import BytesIO
+"""Read full-year ERA5 regional averages from Atlas, never local CSVs."""
 import numpy as np
 import pandas as pd
+import streamlit as st
+from atlas_data import atlas_db, DatasetNotReady
 
-ROOT = Path(__file__).resolve().parent
 VARIABLES = ["temperature_2m", "precipitation"]
 
 
@@ -12,48 +11,46 @@ def validate_weather(frame, region_id, year):
     if region_id not in {f"NO{i}" for i in range(1, 6)}:
         raise ValueError("This ERA5 pipeline uses electricity areas NO1–NO5 only.")
     frame = frame.copy()
-    if "time" not in frame.columns:
-        raise ValueError("CSV must contain time, temperature_2m and precipitation columns.")
+    if not {"time", *VARIABLES}.issubset(frame.columns):
+        raise ValueError("Atlas weather records must contain time, temperature_2m and precipitation.")
     for name in VARIABLES:
-        if name not in frame:
-            raise ValueError(f"Missing weather column: {name}.")
         frame[name] = pd.to_numeric(frame[name], errors="raise")
     if "region_id" in frame and not frame.region_id.eq(region_id).all():
-        raise ValueError("The uploaded region does not match the selected electricity area.")
+        raise ValueError("Atlas records do not match the selected electricity region.")
+    if "model" in frame and not frame.model.eq("era5").all():
+        raise ValueError("Expected ERA5 reanalysis records only.")
     frame["time"] = pd.to_datetime(frame["time"], utc=True, errors="raise")
     frame = frame.set_index("time").sort_index()
     expected = pd.date_range(f"{year}-01-01", f"{year+1}-01-01", freq="h", inclusive="left", tz="UTC")
     if not frame.index.equals(expected):
-        raise ValueError(f"Expected all {len(expected):,} unique consecutive UTC hours of {year}; do not upload a partial year or a single grid-cell file.")
+        raise ValueError(f"Expected all {len(expected):,} unique consecutive UTC hours of {year} in Atlas.")
     if not np.isfinite(frame[VARIABLES].to_numpy()).all() or frame.precipitation.lt(0).any():
         raise ValueError("Weather values must be finite and precipitation cannot be negative.")
     return frame[VARIABLES]
 
 
-def load_weather(region_id, year, uploaded=None, root=ROOT):
-    if uploaded is not None:
-        return validate_weather(pd.read_csv(BytesIO(uploaded)), region_id, year), "Uploaded ERA5 regional averages"
-    candidates = [
-        Path(root) / "data" / "weather" / f"{region_id}_{year}.csv",
-        Path(root) / "weather_fast" / f"{region_id}_{year}-01-01_{year}-12-31_1000pts" / "regional_hourly_mean.csv",
-    ]
-    for path in candidates:
-        if path.is_file():
-            return validate_weather(pd.read_csv(path), region_id, year), f"Saved ERA5 export: {path.name}"
-    raise FileNotFoundError(f"No saved ERA5 regional averages for {region_id}, {year}.")
-
-
-def prepare_weather(region_id, year):
-    # Optional geospatial imports are only needed when preparing new API data.
-    from era5_module import ingest_region
-    points, weather = ingest_region(region_id, (f"{year}-01-01", f"{year}-12-31"),
-                                    n=1000, output=str(ROOT / "weather_fast"))
-    if len(points) != 1000:
-        raise ValueError("Expected 1,000 sample locations.")
-    exported = validate_weather(weather.rename_axis("time").reset_index(), region_id, year)
-    target = ROOT / "data" / "weather" / f"{region_id}_{year}.csv"
-    target.parent.mkdir(parents=True, exist_ok=True)
-    temporary = target.with_suffix(".tmp")
-    exported.assign(region_id=region_id).to_csv(temporary, index=True)
-    temporary.replace(target)
-    return exported
+@st.cache_data(ttl=300, show_spinner="Reading ERA5 regional averages from Atlas…")
+def load_weather(region_id, year):
+    if region_id not in {f"NO{i}" for i in range(1, 6)}:
+        raise ValueError("Choose electricity area NO1–NO5.")
+    db = atlas_db()
+    dataset_id = f"era5_{region_id}_{year}"
+    meta = db["era5_datasets"].find_one({"_id": dataset_id})
+    if not meta or meta.get("status") != "complete":
+        raise DatasetNotReady(f"Publish the completed {region_id}, {year} ERA5 dataset from Jupyter to Atlas first.")
+    if meta.get("region_id") != region_id or meta.get("year") != year or meta.get("model") != "era5":
+        raise ValueError("Atlas dataset metadata does not match the chosen region, year and ERA5 model.")
+    sample_count = meta.get("source_sample_count", meta.get("sample_count"))
+    if sample_count != 1000:
+        raise ValueError("The ERA5 dataset must represent 1,000 sampled locations.")
+    query = {"region_id": region_id, "model": "era5", "time": {
+        "$gte": pd.Timestamp(f"{year}-01-01", tz="UTC").to_pydatetime(),
+        "$lt": pd.Timestamp(f"{year+1}-01-01", tz="UTC").to_pydatetime()}}
+    records = list(db["era5_hourly"].find(query, {"_id": 0}).sort("time", 1))
+    after = db["era5_datasets"].find_one({"_id": dataset_id})
+    if not after or after.get("status") != "complete" or after.get("updated_at") != meta.get("updated_at"):
+        raise DatasetNotReady("The ERA5 dataset is being updated. Refresh after publication finishes.")
+    weather = validate_weather(pd.DataFrame(records), region_id, year)
+    if meta.get("hours") != len(weather):
+        raise ValueError("Atlas weather row count does not match its publication metadata.")
+    return weather, f"MongoDB Atlas · nve.era5_hourly · {region_id}, {year} · 1,000 sampled locations"
