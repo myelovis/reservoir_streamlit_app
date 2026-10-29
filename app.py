@@ -11,10 +11,10 @@ def home():
     Explore Norway’s reservoir storage and electricity transfers
     between Norway NO2 and Denmark DK1.
 
-    ### Data sources
-    - **NVE Magasinstatistikk:** reservoir filling, capacity and stored energy.
-    - **ENTSO-E:** electricity imports and exports.
-    - **Open-Meteo ERA5:** hourly regional temperature and precipitation.
+    ### Plot data: MongoDB Atlas
+    - **Reservoirs:** NVE observations published to `nve.reservoir_weekly`.
+    - **Electricity transfers:** published Part 2 records in `nve.simple_transfers`.
+    - **Weather:** existing ERA5 regional averages in `nve.era5_hourly`. No CSV files or new API downloads are needed for plots.
 
     ### Navigation
     - **Reservoir Overview / Reservoir Plots:** tables, area selection and measures.
