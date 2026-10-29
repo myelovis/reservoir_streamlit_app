@@ -114,22 +114,31 @@ tests/
 - [Open-Meteo Historical Weather API](https://open-meteo.com/en/docs/historical-weather-api): ECMWF ERA5 reanalysis, downloaded upstream through the module.
 - [ENTSO-E](https://transparency.entsoe.eu/): Part 2 transfer observations, processed through Spark/Cassandra and published to Atlas.
 
-## Project Structure
-
-```text
 .
-├── .devcontainer/              # Development container configuration files
-├── pages/                      # Multi-page Streamlit views
-│   ├── 1_Reservoir_Table.py    # Reservoir table data page
-│   ├── 2_Reservoir_Plots.py    # Reservoir plotting page
-│   ├── 3_Electricity_Transfers.py # Electricity transfers page
-│   └── technotes.txt           # Technical notes for pages
-├── README.md                   # Project documentation
-├── app.py                      # Main application entry point
-├── requirements.txt            # Python dependencies
-├── reservoir_data.py           # Reservoir data processing modules
-├── technote.txt                # General technical notes
-├── transfer_data.py            # Data fetching/processing for transfers
-├── transfer_plots.py           # Plotting utilities for transfers
-└── utils.py                    # Helper functions and shared utilities
-
+├── .devcontainer/                  # Development container configuration
+├── pages/                          # Streamlit pages
+│   ├── 1_Reservoir_Table.py         # Reservoir tables and sparklines
+│   ├── 2_Reservoir_Plots.py         # Filtered reservoir plots
+│   ├── 3_Electricity_Transfers.py   # Part 2 electricity-transfer report
+│   ├── 4_Reservoir_Patterns.py      # STL decomposition and spectrogram tabs
+│   ├── 5_Weather_Outliers.py        # Precipitation SPC and temperature LOF tabs
+│   └── technotes.txt               # Page technical notes
+├── tests/                          # Automated checks
+│   ├── test_analysis.py            # Numerical analysis tests
+│   ├── test_atlas.py               # Atlas queries and collection isolation
+│   └── test_pages.py               # Streamlit controls and navigation
+├── .gitignore                      # Excludes secrets and local caches
+├── README.md                       # Setup, data flow and documentation
+├── app.py                          # Entry point and grouped navigation
+├── requirements.txt                # Application dependencies
+├── atlas_data.py                   # Shared read-only Atlas connection
+├── reservoir_data.py               # Reservoir loading from Atlas and area selection
+├── weather_data.py                 # ERA5 loading from Atlas and validation
+├── analysis.py                     # STL, spectrogram, SPC and LOF functions
+├── publish_atlas.py                # Publishes NVE reservoir observations to Atlas
+├── era5_module.py                  # Spatial sampling and ERA5 API ingestion
+├── prepare_weather.py              # Optional local ERA5 download command
+├── transfer_data.py                # Loads Part 2 transfer records from Atlas
+├── transfer_plots.py               # Electricity-transfer plotting functions
+├── technote.txt                    # General technical notes
+└── utils.py                        # Legacy helpers; unused by Atlas plot loaders
