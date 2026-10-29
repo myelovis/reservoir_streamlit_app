@@ -26,7 +26,7 @@ Cluster0 / nve
     reservoir_datasets     Reservoir publication status and metadata
 ```
 
-**Your completed NO3 upload should not be repeated.** The app reads its existing `era5_hourly` and `era5_datasets` records. Weather queries require the chosen region, model ERA5 and exact calendar year. The complete publication marker, 1,000 source samples, full-year timestamps, row count and finite values are validated before plotting. In-progress/incomplete data is not plotted.
+The app reads its existing `era5_hourly` and `era5_datasets` records. Weather queries require the chosen region, model ERA5 and exact calendar year. The complete publication marker, 1,000 source samples, full-year timestamps, row count and finite values are validated before plotting.
 
 ## One-time setup
 
@@ -88,7 +88,7 @@ Store regional averages, not all point-hour combinations:
 - Upserts and unique indexes avoid duplicate records on retries. The app itself is read-only.
 - Check total Atlas usage, including Part 2 collections and indexes. No existing data is automatically deleted.
 
-Only NO3/2024 is required for the assignment test run. Other regions display a missing-publication message until their own weather data is available in Atlas.
+Only NO3/2024 (AREA = EL > 3) is required. Other regions display a missing-publication message until their own weather data is available in Atlas.
 
 ## Files
 
@@ -114,4 +114,3 @@ tests/
 - [Open-Meteo Historical Weather API](https://open-meteo.com/en/docs/historical-weather-api): ECMWF ERA5 reanalysis, downloaded upstream through the module.
 - [ENTSO-E](https://transparency.entsoe.eu/): Part 2 transfer observations, processed through Spark/Cassandra and published to Atlas.
 
-Keep changes on a temporary branch until the required peer review/feedback is complete. The notebook contains the work log, assumptions and AI-use documentation.
