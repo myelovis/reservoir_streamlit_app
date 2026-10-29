@@ -24,7 +24,7 @@ columns = st.columns(3)
 columns[0].metric("Region", label)
 columns[1].metric("Weekly observations", f"{len(filling):,}")
 columns[2].metric("Average filling", f"{filling.mean():.1f}%" if len(filling) else "—")
-st.caption("Source: NVE Magasinstatistikk · weekly filling (%) · no interpolation of missing weeks. The area selection is shared with the reservoir table and plots.")
+st.caption("Source: MongoDB Atlas (NVE observations) · weekly filling (%) · no interpolation of missing weeks. The area selection is shared with the reservoir table and plots.")
 
 stl_tab, spectral_tab = st.tabs(["STL decomposition", "Spectrogram"])
 with stl_tab:
@@ -42,7 +42,7 @@ with stl_tab:
         plt.close(fig)
         st.caption("Annual period ≈ 52 weeks. Larger smoothers produce smoother components. Robust fitting reduces the influence of unusual observations. pp = percentage points.")
         with st.expander("Decomposition values"):
-            st.dataframe(components, use_container_width=True)
+            st.dataframe(components, width="stretch")
         st.download_button("Download STL components", components.to_csv().encode(), f"{label}_stl.csv", "text/csv")
 
 with spectral_tab:
