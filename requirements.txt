@@ -1,3 +1,17 @@
-streamlit>=1.30.0
-pandas>=2.0.0
-plotly>=5.15.0
+# Install Python 3.11 and Java 17 separately.
+pyspark==3.5.9
+pandas==2.3.3
+numpy==1.26.4
+matplotlib==3.11.2
+requests==2.34.2
+pymongo==4.18.3
+cassandra-driver==3.30.1
+ipykernel==7.4.0
+jupyterlab==4.6.4
+geopandas==1.0.1
+cdsapi
+shapely
+spicy
+scipy
+statsmodels
+scikit-learn
