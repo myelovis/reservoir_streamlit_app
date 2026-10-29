@@ -118,31 +118,25 @@ tests/
 
 ```text
 .
-├── .devcontainer/                 # Development configuration
-├── pages/
-│   ├── 1_Reservoir_Table.py        # Tables and sparklines
+├── pages/                         # Streamlit pages
+│   ├── 1_Reservoir_Table.py        # Reservoir tables and sparklines
 │   ├── 2_Reservoir_Plots.py        # Filtered reservoir plots
-│   ├── 3_Electricity_Transfers.py  # Electricity-transfer report
-│   ├── 4_Reservoir_Patterns.py     # STL and spectrogram
-│   ├── 5_Weather_Outliers.py       # Precipitation SPC and temperature LOF
-│   └── technotes.txt              # Page notes
-├── tests/
-│   ├── test_analysis.py           # Analysis tests
-│   ├── test_atlas.py              # Atlas data tests
-│   └── test_pages.py              # Streamlit page tests
-├── .gitignore
-├── README.md
-├── app.py                         # Entry point and navigation
-├── requirements.txt               # Dependencies
-├── atlas_data.py                  # Atlas connection
-├── reservoir_data.py              # Reservoir data and area selection
-├── weather_data.py                # ERA5 data loading and validation
-├── analysis.py                    # Analysis functions
-├── publish_atlas.py               # Publish reservoir data to Atlas
-├── era5_module.py                 # Sampling and ERA5 ingestion
-├── prepare_weather.py             # Optional local downloader
-├── transfer_data.py               # Transfer data from Atlas
-├── transfer_plots.py              # Transfer plots
-├── technote.txt                   # General notes
-└── utils.py                       # Legacy helpers
+│   ├── 3_Reservoir_Patterns.py     # STL and spectrogram tabs
+│   ├── 4_Weather_Outliers.py       # Precipitation SPC and temperature LOF
+│   └── 5_Electricity_Transfers.py  # Part 2 electricity-transfer report
+├── README.md                      # Documentation and setup
+├── app.py                         # Application entry point and navigation
+├── requirements.txt               # Python dependencies
+├── atlas_data.py                  # Shared MongoDB Atlas connection
+├── reservoir_data.py              # Reservoir loading and area selection
+├── weather_data.py                # ERA5 loading and validation
+├── analysis.py                    # STL, spectrogram, SPC and LOF functions
+├── era5_module.py                 # Spatial sampling and ERA5 API ingestion
+├── prepare_weather.py             # Optional local weather preparation
+├── transfer_data.py               # Transfer data loading
+├── transfer_plots.py              # Electricity-transfer charts
+├── reservoirs.csv                 # Legacy reservoir dataset
+└── utils.py                       # Legacy utility functions
 ```
+
+The deployed Atlas-based pages do not require weather CSVs in GitHub.
