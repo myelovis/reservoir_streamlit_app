@@ -3,7 +3,7 @@ import pandas as pd
 import streamlit as st
 from reservoir_data import choose_area, METRICS, reservoir_plot
 
-st.title("Reservoir plots")
+st.title("Megasinstatstikk Data Filter")
 series = choose_area()
 months = series.index.to_period("M").unique().sort_values().astype(str).tolist()
 first, last = st.select_slider("Months", options=months, value=(months[0], months[0]))
@@ -18,4 +18,4 @@ fig = reservoir_plot(selected, column)
 st.pyplot(fig)
 plt.close(fig)
 st.caption("All measures uses min–max scaling over the selected interval; constant measures appear at zero.")
-st.caption("NVE returns the full dataset. The slider filters the downloaded observations locally.")
+st.caption("The slider filters the NVE observations published in MongoDB Atlas.")
