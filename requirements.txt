@@ -12,5 +12,6 @@ geopandas==1.0.1
 cdsapi
 shapely
 spicy
+scipy
 statsmodels
 scikit-learn
