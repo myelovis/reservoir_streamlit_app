@@ -114,3 +114,22 @@ tests/
 - [Open-Meteo Historical Weather API](https://open-meteo.com/en/docs/historical-weather-api): ECMWF ERA5 reanalysis, downloaded upstream through the module.
 - [ENTSO-E](https://transparency.entsoe.eu/): Part 2 transfer observations, processed through Spark/Cassandra and published to Atlas.
 
+## Project Structure
+
+```text
+.
+├── .devcontainer/              # Development container configuration files
+├── pages/                      # Multi-page Streamlit views
+│   ├── 1_Reservoir_Table.py    # Reservoir table data page
+│   ├── 2_Reservoir_Plots.py    # Reservoir plotting page
+│   ├── 3_Electricity_Transfers.py # Electricity transfers page
+│   └── technotes.txt           # Technical notes for pages
+├── README.md                   # Project documentation
+├── app.py                      # Main application entry point
+├── requirements.txt            # Python dependencies
+├── reservoir_data.py           # Reservoir data processing modules
+├── technote.txt                # General technical notes
+├── transfer_data.py            # Data fetching/processing for transfers
+├── transfer_plots.py           # Plotting utilities for transfers
+└── utils.py                    # Helper functions and shared utilities
+
