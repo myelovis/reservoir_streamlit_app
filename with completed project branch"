@@ -1,0 +1,20 @@
+ Dtb_ca3 jupyter notebook.ipynb                                   | 1747 [32m+++++++++++++++++++++++++++++++++++++++++++++++[m
+ README.md                                                        |  144 [32m+++[m[31m-[m
+ analysis.py                                                      |  109 [32m+++[m
+ app.py                                                           |   93 [32m++[m[31m-[m
+ atlas_data.py                                                    |   28 [32m+[m
+ era5_module.py                                                   |  136 [32m++++[m
+ pages/1_Data_Overview.py                                         |   58 [31m--[m
+ pages/2_Interactive_Plots.py                                     |   69 [31m--[m
+ pages/2_Reservoir_Plots.py                                       |    4 [32m+[m[31m-[m
+ pages/3_Reservoir_Patterns.py                                    |   61 [32m++[m
+ pages/3_Summary_Analytics.py                                     |   22 [31m-[m
+ pages/4_Weather_Outliers.py                                      |   83 [32m+++[m
+ pages/{3_Electricity_Transfers.py => 5_Electricity_Transfers.py} |    0
+ prepare_weather.py                                               |   11 [32m+[m
+ requirements.txt                                                 |   20 [32m+[m[31m-[m
+ reservoir_data.py                                                |  111 [32m+++[m
+ transfer_data.py                                                 |   35 [32m+[m
+ transfer_plots.py                                                |  125 [32m++++[m
+ weather_data.py                                                  |   56 [32m++[m
+ 19 files changed, 2734 insertions(+), 178 deletions(-)
