@@ -18,7 +18,7 @@ def home():
             st.caption('NORWAY / WATER · WEATHER · ENERGY')
             st.title('Chronological Insights')
         with accent:
-            st.image(str(Path(__file__).parent / 'leaf.jpg'), width=58)
+            st.image(str(Path(__file__).parent / 'leaf.jpg'), width=128)
     st.write('Understand the past. Explore what comes next.')
     st.caption('[Magasinstatistikk](https://biapi.nve.no/magasinstatistikk/swagger/index.html) · '
                '[Open-Meteo / ERA5](https://open-meteo.com/en/docs/historical-weather-api) · '
