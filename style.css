@@ -1,0 +1,66 @@
+/* Warm colours, small details and plenty of space. */
+:root {
+    --ink: #3d392f;
+    --clay: #a35036;
+    --sage: #52684e;
+    --gold: #906825;
+}
+[data-testid="stAppViewContainer"] {
+    background: #faf7f0;
+    color: var(--ink);
+}
+[data-testid="stSidebar"] {
+    background: #f0ece2;
+    border-right: 1px solid #ddd5c6;
+}
+h1, h2, h3 {
+    font-family: Georgia, 'Times New Roman', serif !important;
+    color: var(--ink);
+    font-weight: 600 !important;
+}
+h1 { letter-spacing: -0.025em; }
+[data-testid="stCaptionContainer"] { color: #696358; }
+.boho-accent {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin: 0 0 14px;
+}
+.boho-accent span {
+    width: 11px;
+    height: 11px;
+    background: var(--clay);
+    border-radius: 50%;
+}
+.boho-accent span:nth-child(2) {
+    width: 42px;
+    height: 1px;
+    background: #b7a98e;
+}
+.boho-accent span:last-child {
+    background: transparent;
+    border: 1px solid var(--sage);
+}
+.st-key-home_explore, .st-key-home_diagnose, .st-key-home_forecast {
+    border-radius: 18px;
+    border: 1px solid #dcd3c3;
+    border-top: 3px solid var(--clay);
+    background: #fffaf4;
+}
+.st-key-home_diagnose {
+    background: #f1f3eb;
+    border-top-color: var(--sage);
+}
+.st-key-home_forecast {
+    background: #f8f0df;
+    border-top-color: var(--gold);
+}
+.st-key-home_explore h3 { color: var(--clay); }
+.st-key-home_diagnose h3 { color: var(--sage); }
+.st-key-home_forecast h3 { color: var(--gold); }
+[data-testid="stButton"] button { border-radius: 12px; }
+[data-testid="stDialog"] [role="dialog"] {
+    background: #faf7f0;
+    border: 1px solid #dcd3c3;
+    border-radius: 20px;
+}

@@ -10,7 +10,8 @@ def remember_dates():
     st.session_state['selected_period'] = st.session_state['_shared_period']
 
 
-def choose_period(series):
+def choose_period(series, panel=None):
+    panel = st.sidebar if panel is None else panel
     first, last = series.index.min().date(), series.index.max().date()
     default = (max(first, pd.Timestamp('2024-01-01').date()), min(last, pd.Timestamp('2024-12-31').date()))
     if default[0] > default[1]:
@@ -20,7 +21,7 @@ def choose_period(series):
         saved = default
     saved = (max(first, min(saved[0], last)), max(first, min(saved[1], last)))
     st.session_state['_shared_period'] = saved
-    dates = st.sidebar.date_input('Shared time frame', min_value=first, max_value=last,
+    dates = panel.date_input('Shared time frame', min_value=first, max_value=last,
                                  key='_shared_period', on_change=remember_dates)
     if len(dates) != 2 or dates[0] > dates[1]:
         st.info('Choose a start and an end date.')

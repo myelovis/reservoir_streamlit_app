@@ -1,13 +1,29 @@
+from pathlib import Path
 import streamlit as st
 
 st.set_page_config(page_title='Chronological Insights · Norway',page_icon='🌊',layout='wide')
+style = (Path(__file__).parent / 'style.css').read_text(encoding='utf-8')
+st.html(f'<style>{style}</style>')
 
 
 def home():
+    st.html('<div class="boho-accent" aria-hidden="true"><span></span><span></span><span></span></div>')
     st.title('Chronological Insights · Norway')
-    st.caption('Magasinstatistikk · Open-Meteo / ERA5 · ENTSO-E')
-    st.write('Choose an area on the map, then use the shared region and dates across pages.')
-    st.page_link('pages/0_Region_Map.py',label='Select region and dates →')
+    st.caption('[Magasinstatistikk](https://biapi.nve.no/magasinstatistikk/swagger/index.html) · '
+               '[Open-Meteo / ERA5](https://open-meteo.com/en/docs/historical-weather-api) · '
+               '[ENTSO-E](https://transparencyplatform.zendesk.com/hc/en-us/articles/15692855254548-Sitemap-for-Restful-API-Integration)')
+    st.write('Choose a region and dates in the popup, then explore your data.')
+    if st.button('Select region and dates →', type='tertiary'):
+        from region_picker import open_region_picker
+        open_region_picker()
+    # Move card links to the right; allow text to wrap on small screens.
+    st.html('''<style>
+        .st-key-home_explore [data-testid="stPageLink"],
+        .st-key-home_diagnose [data-testid="stPageLink"],
+        .st-key-home_forecast [data-testid="stPageLink"] {
+            margin-left: min(8rem, 38%);
+        }
+    </style>''')
     columns = st.columns(3)
     groups = [
         ('Explore', [('pages/1_Reservoir_Table.py','Reservoir table'),
@@ -20,7 +36,7 @@ def home():
         ('Forecast', [('pages/7_Filling_Forecast.py','Reservoir · SARIMAX / Ridge')]),
     ]
     for column, (title, links) in zip(columns, groups):
-        with column.container(border=True):
+        with column.container(border=True, key=f'home_{title.lower()}'):
             st.subheader(title)
             for path, label in links:
                 st.page_link(path,label=label)
@@ -28,7 +44,7 @@ def home():
 
 
 page = st.navigation({
-    'Start':[st.Page(home,title='Home',default=True),st.Page('pages/0_Region_Map.py',title='Map and selectors')],
+    'Start':[st.Page(home,title='Home',default=True)],
     'Explore':[st.Page('pages/1_Reservoir_Table.py',title='Reservoir overview'),
                   st.Page('pages/2_Reservoir_Plots.py',title='Plots'),
                   st.Page('pages/3_Reservoir_Patterns.py',title='STL and spectrogram'),

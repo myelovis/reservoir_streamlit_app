@@ -62,7 +62,8 @@ def _remember_number():
     st.session_state["selected_area_number"] = st.session_state["_area_number"]
 
 
-def choose_area(default_kind="NO", default_number=0):
+def choose_area(default_kind="NO", default_number=0, panel=None):
+    panel = st.sidebar if panel is None else panel
     try:
         df = load_reservoirs()
     except (AtlasSetupError, DatasetNotReady) as error:
@@ -82,12 +83,12 @@ def choose_area(default_kind="NO", default_number=0):
     # Permanent keys survive Streamlit's cleanup of widgets on other pages.
     saved_kind = st.session_state.get("selected_area_type", default_kind)
     st.session_state["_area_type"] = saved_kind if saved_kind in kinds else kinds[0]
-    kind = st.sidebar.radio("Area type", kinds, key="_area_type", on_change=_remember_area)
+    kind = panel.radio("Area type", kinds, key="_area_type", on_change=_remember_area)
     st.session_state["selected_area_type"] = kind
     numbers = sorted(df.loc[df.area_type.eq(kind), "area_number"].unique())
     saved_number = st.session_state.get("selected_area_number", default_number)
     st.session_state["_area_number"] = saved_number if saved_number in numbers else numbers[0]
-    number = st.sidebar.selectbox("Area number", numbers, key="_area_number", on_change=_remember_number)
+    number = panel.selectbox("Area number", numbers, key="_area_number", on_change=_remember_number)
     st.session_state["selected_area_number"] = number
     st.caption("NO: national; EL: price area; VASS: watercourse area. These classifications overlap.")
     st.caption("Plot source: MongoDB Atlas · nve.reservoir_weekly · originally published from NVE.")
