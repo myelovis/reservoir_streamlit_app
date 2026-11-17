@@ -30,7 +30,7 @@ def stl_analysis(filling, seasonal=13, trend=89, robust=True, label="Selected re
     components = pd.DataFrame({"observed": y, "trend": result.trend,
                                "seasonal": result.seasonal, "residual": result.resid})
     fig, axes = plt.subplots(4, 1, figsize=(11, 8), sharex=True, constrained_layout=True)
-    colors = ["#2563eb", "#d97706", "#0d9488", "#be123c"]
+    colors = ["#287451", "#679477", "#3c805d", "#153f31"]
     for ax, name, color in zip(axes, components, colors):
         ax.plot(y.index, components[name], color=color, linewidth=1.1)
         ax.set_ylabel(name.title() + (" (%)" if name in ("observed", "trend") else " (pp)"))
@@ -55,8 +55,8 @@ def spectrogram_analysis(filling, window_length=104, window_overlap=78, label="S
     relative = power[1:] / max(float(power[1:].max()), np.finfo(float).tiny)
     decibels = 10 * np.log10(np.maximum(relative, 1e-12))
     fig, ax = plt.subplots(figsize=(11, 4.8), constrained_layout=True)
-    image = ax.pcolormesh(dates, frequency[1:], decibels, shading="auto", cmap="magma", vmin=-60, vmax=0)
-    ax.axhline(1, color="cyan", linestyle="--", linewidth=1, label="Annual cycle")
+    image = ax.pcolormesh(dates, frequency[1:], decibels, shading="auto", cmap="Greens", vmin=-60, vmax=0)
+    ax.axhline(1, color="#153f31", linestyle="--", linewidth=1, label="Annual cycle")
     ax.set(title=f"{label} · reservoir filling spectrogram", xlabel="Window centre",
            ylabel="Frequency (cycles/year)", ylim=(0, 6))
     ax.legend(loc="upper right")
@@ -83,10 +83,10 @@ def precipitation_spc(weather, cutoff_days=30, n_sigma=3, label="Selected region
     flagged = (y.to_numpy() < lower) | (y.to_numpy() > upper)
     results = pd.DataFrame({"precipitation": y, "lower_limit": lower, "upper_limit": upper, "outlier": flagged})
     fig, ax = plt.subplots(figsize=(11, 4), constrained_layout=True)
-    ax.plot(y.index, y, color="#2563eb", linewidth=.7, label="Regional precipitation")
-    ax.plot(y.index, lower, "--", color="#d97706", label="SPC limits")
-    ax.plot(y.index, upper, "--", color="#d97706")
-    ax.scatter(y.index[flagged], y.iloc[flagged], color="crimson", s=12, label="Outliers", zorder=3)
+    ax.plot(y.index, y, color="#287451", linewidth=.7, label="Regional precipitation")
+    ax.plot(y.index, lower, "--", color="#679477", label="SPC limits")
+    ax.plot(y.index, upper, "--", color="#679477")
+    ax.scatter(y.index[flagged], y.iloc[flagged], color="#103e2a", s=12, label="Outliers", zorder=3)
     ax.set(title=f"{label} · precipitation DCT/SPC", xlabel="Time (UTC)", ylabel="Precipitation (mm/hour)")
     ax.legend()
     summary = {"hours": len(y), "outlier_hours": int(flagged.sum()),
@@ -102,8 +102,8 @@ def temperature_lof(weather, proportion=.01, neighbours=20, label="Selected regi
     flagged = model.fit_predict(y.to_numpy().reshape(-1, 1)) == -1
     results = pd.DataFrame({"temperature_2m": y, "lof_score": -model.negative_outlier_factor_, "anomaly": flagged})
     fig, ax = plt.subplots(figsize=(11, 4), constrained_layout=True)
-    ax.plot(y.index, y, color="#2563eb", linewidth=.7, label="Regional temperature")
-    ax.scatter(y.index[flagged], y.iloc[flagged], color="crimson", s=15, label="LOF anomalies", zorder=3)
+    ax.plot(y.index, y, color="#287451", linewidth=.7, label="Regional temperature")
+    ax.scatter(y.index[flagged], y.iloc[flagged], color="#103e2a", s=15, label="LOF anomalies", zorder=3)
     ax.set(title=f"{label} · temperature LOF", xlabel="Time (UTC)", ylabel="Temperature (°C)")
     ax.legend()
     return fig, results, {"hours": len(y), "anomaly_hours": int(flagged.sum()), "anomaly_percent": float(100 * flagged.mean())}

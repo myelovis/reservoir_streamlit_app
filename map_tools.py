@@ -8,7 +8,7 @@ from weather_data import load_period
 from weather_stats import PROPERTIES
 from atlas_data import DatasetNotReady
 
-PALETTE = ['#247a91','#df8749','#63a35c','#935caa','#d05b73']
+PALETTE = ['#287451','#549366','#78ad87','#a0c6a4','#386b4c']
 
 
 @st.cache_data(show_spinner=False)
@@ -38,9 +38,9 @@ def colour_map(outlines, colour_kind, property_name, start, end, selected):
                 missing.append(area.area_id)
         finite = [value for value in values if np.isfinite(value)]
         low, high = (min(finite),max(finite)) if finite else (0,1)
-        legend = cm.LinearColormap(['#edf8b1','#41b6c4','#225ea8'],vmin=low,vmax=max(high,low+1e-6))
+        legend = cm.LinearColormap(['#edf6ee','#8aba94','#205b3d'],vmin=low,vmax=max(high,low+1e-6))
         legend.caption = f'{PROPERTIES[property_name][0]} ({PROPERTIES[property_name][1]})'
-        shaded['colour'] = [legend(value) if np.isfinite(value) else '#cccccc' for value in values]
+        shaded['colour'] = [legend(value) if np.isfinite(value) else '#e1e9e2' for value in values]
         shaded['value'] = [f'{value:.2f}' if np.isfinite(value) else 'No data' for value in values]
     else:
         shaded['colour'] = [PALETTE[i%len(PALETTE)] for i in range(len(shaded))]
@@ -51,7 +51,7 @@ def colour_map(outlines, colour_kind, property_name, start, end, selected):
         'fillColor':f['properties']['colour'],'fillOpacity':.38,'weight':0},
         tooltip=folium.GeoJsonTooltip(fields=['name','value'])).add_to(result)
     folium.GeoJson(outlines.to_json(),style_function=lambda f:{
-        'color':'#f04438' if f['properties']['area_id']==selected else '#173c4a',
+        'color':'#0b3823' if f['properties']['area_id']==selected else '#4a7358',
         'weight':4 if f['properties']['area_id']==selected else 1.2,'fillOpacity':0},
         tooltip=folium.GeoJsonTooltip(fields=['name'])).add_to(result)
     result.fit_bounds([[bounds[1],bounds[0]],[bounds[3],bounds[2]]])

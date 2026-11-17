@@ -3,27 +3,27 @@ import plotly.graph_objects as go
 
 
 def weather_plot(result, title, unit):
-    fig = go.Figure(go.Scatter(x=result.index, y=result.value, name='Observed', line_color='#247a91'))
+    fig = go.Figure(go.Scatter(x=result.index, y=result.value, name='Observed', line_color='#287451'))
     if 'lower' in result:
         for column in ['lower','upper']:
-            fig.add_trace(go.Scatter(x=result.index, y=result[column], name=column.title()+' limit', line=dict(color='#d9932c',dash='dash')))
+            fig.add_trace(go.Scatter(x=result.index, y=result[column], name=column.title()+' limit', line=dict(color='#679477',dash='dash')))
     outliers = result.loc[result.flag]
-    fig.add_trace(go.Scatter(x=outliers.index,y=outliers.value,mode='markers',name='Flagged',marker=dict(color='#d94453',size=5)))
+    fig.add_trace(go.Scatter(x=outliers.index,y=outliers.value,mode='markers',name='Flagged',marker=dict(color='#103e2a',size=7,symbol='diamond')))
     return fig.update_layout(title=title,xaxis_title='Time (UTC)',yaxis_title=unit,height=430)
 
 
 def correlation_plot(result):
-    fig = go.Figure(go.Scatter(x=result.index,y=result.correlation,name='Rolling correlation',line_color='#247a91'))
+    fig = go.Figure(go.Scatter(x=result.index,y=result.correlation,name='Rolling correlation',line_color='#287451'))
     fig.add_hline(y=0,line_dash='dot')
     return fig.update_layout(xaxis_title='Week',yaxis_title='Pearson correlation',yaxis_range=[-1,1],height=380)
 
 
 def forecast_animation(history, forecast, title):
-    fig = go.Figure(go.Scatter(x=history.index,y=history,name='Training filling',line_color='#247a91'))
-    fig.add_trace(go.Scatter(x=forecast.index,y=forecast.forecast,name='Recursive forecast',line_color='#dc7534'))
+    fig = go.Figure(go.Scatter(x=history.index,y=history,name='Training filling',line_color='#287451'))
+    fig.add_trace(go.Scatter(x=forecast.index,y=forecast.forecast,name='Recursive forecast',line=dict(color='#57966b',dash='dash',width=2.5)))
     if 'lower' in forecast:
         fig.add_trace(go.Scatter(x=forecast.index,y=forecast.lower,mode='lines',line_width=0,showlegend=False))
-        fig.add_trace(go.Scatter(x=forecast.index,y=forecast.upper,mode='lines',line_width=0,fill='tonexty',fillcolor='rgba(220,117,52,.15)',name='Conditional interval'))
+        fig.add_trace(go.Scatter(x=forecast.index,y=forecast.upper,mode='lines',line_width=0,fill='tonexty',fillcolor='rgba(87,150,107,.18)',name='Conditional interval'))
     frames = []
     for stop in range(1,len(forecast)+1):
         part = forecast.iloc[:stop]

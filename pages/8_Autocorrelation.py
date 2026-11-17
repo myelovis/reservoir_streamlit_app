@@ -47,8 +47,8 @@ with explain_errors():
             fig = go.Figure()
             fig.add_scatter(x=x, y=limits[1:, 0] - values[1:], mode='lines', line_width=0, showlegend=False)
             fig.add_scatter(x=x, y=limits[1:, 1] - values[1:], mode='lines', line_width=0,
-                            fill='tonexty', fillcolor='rgba(36,122,145,0.15)', name='Approx. 95% band')
-            fig.add_bar(x=x, y=values[1:], marker_color='#247a91', name=name)
+                            fill='tonexty', fillcolor='rgba(40,116,81,0.15)', name='Approx. 95% band')
+            fig.add_bar(x=x, y=values[1:], marker_color='#287451', name=name)
             fig.update_layout(title=f'{area_id(series)} · {name}', xaxis_title='Lag (weeks)',
                               yaxis_title='Correlation', template='plotly_white', height=380)
             st.plotly_chart(fig, width='stretch')

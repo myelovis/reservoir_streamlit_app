@@ -30,7 +30,7 @@ with explain_errors():
                 st.session_state['selected_area_type'] = chosen.area_type
                 st.session_state['selected_area_number'] = int(chosen.area_number)
                 st.rerun()
-    st.caption(f'Selected: {area_id(series)} · red outline · {start} to {end}')
+    st.caption(f'Selected: {area_id(series)} · dark-green outline · {start} to {end}')
     if missing:
         st.info('Grey areas have no prepared weather: '+', '.join(missing))
 st.caption('Price and water colours identify regions; they are not electricity prices. Weather uses a time mean for temperature and a time total for precipitation.')

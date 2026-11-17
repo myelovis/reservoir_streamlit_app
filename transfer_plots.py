@@ -5,7 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
-COLORS = {"in": "#005A9C", "out": "#E05A47"}
+COLORS = {"in": "#205b3d", "out": "#75a584"}
 LABELS = {"in": "Into Norway (Import)", "out": "Out of Norway (Export)"}
 
 def clip_intervals(df, start, end):
@@ -97,7 +97,7 @@ def power_lines(annual, months):
             # Plot continuous line representation
             ax.plot(
                 x, y,
-                color=COLORS.get(direction, "#1f77b4"),
+                color=COLORS.get(direction, "#287451"),
                 linewidth=1.5,
                 label=f"NO2–DK1: {LABELS.get(direction, direction)}"
             )
