@@ -11,17 +11,14 @@ st.html(f'<style>{style}</style>')
 
 
 def home():
-    # One small botanical accent; the rest of the page stays plain.
-    st.html('''<div class="brand-label">
-        <svg class="brand-leaf" viewBox="0 0 48 48" aria-hidden="true" fill="none">
-            <path d="M12 39C17 27 27 15 37 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            <path d="M17 30C6 29 8 17 10 14C18 17 22 23 17 30Z" fill="#e0ece1" stroke="currentColor" stroke-width="1.2"/>
-            <path d="M24 22C24 10 33 6 39 6C40 16 34 23 24 22Z" fill="#edf4ed" stroke="currentColor" stroke-width="1.2"/>
-            <path d="M20 28C29 22 37 25 40 28C34 36 26 36 20 28Z" fill="#d1e3d4" stroke="currentColor" stroke-width="1.2"/>
-        </svg>
-        <span>NORWAY / WATER · WEATHER · ENERGY</span>
-    </div>''')
-    st.title('Chronological Insights')
+    # Use an image file so the leaf renders reliably.
+    with st.container(key='home_heading'):
+        heading, accent = st.columns([9, 1], vertical_alignment='center')
+        with heading:
+            st.caption('NORWAY / WATER · WEATHER · ENERGY')
+            st.title('Chronological Insights')
+        with accent:
+            st.image(str(Path(__file__).parent / 'leaf.jpg'), width=58)
     st.write('Understand the past. Explore what comes next.')
     st.caption('[Magasinstatistikk](https://biapi.nve.no/magasinstatistikk/swagger/index.html) · '
                '[Open-Meteo / ERA5](https://open-meteo.com/en/docs/historical-weather-api) · '
@@ -29,8 +26,6 @@ def home():
     if st.button('Select region and dates →', type='primary'):
         from region_picker import open_region_picker
         open_region_picker()
-    st.caption('One shared region and time frame across your analyses.')
-    st.space('small')
     columns = st.columns(3)
     groups = [
         ('Explore', [('pages/1_Reservoir_Table.py','Reservoir table'),
