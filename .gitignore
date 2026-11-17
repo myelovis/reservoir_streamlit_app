@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.ipynb_checkpoints/
+.streamlit/secrets.toml
+data/weather_cache/
+data/prepared.sqlite3
+data/prepared.sqlite3-*
+notebooks/generated_*

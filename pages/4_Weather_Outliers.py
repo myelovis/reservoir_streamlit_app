@@ -1,0 +1,42 @@
+import pandas as pd
+import streamlit as st
+from reservoir_data import choose_area
+from weather_data import load_weather
+from weather_stats import PROPERTIES, spc, lof
+from plot_tools import weather_plot
+from shared_ui import choose_period, area_id, explain_errors
+
+st.title('Weather outliers')
+series = choose_area(default_kind='EL',default_number=3)
+start, end = choose_period(series)
+year = end.year
+with explain_errors():
+    with st.spinner('Reading weather from Atlas…'):
+        weather, source = load_weather(area_id(series),year)
+    st.caption(source)
+    st.caption(f'Limits use the complete year {year}. Plots show its overlap with the shared time frame.')
+    spc_tab, lof_tab = st.tabs(['DCT / SPC','LOF'])
+    for tab, method in [(spc_tab,'SPC'),(lof_tab,'LOF')]:
+        with tab:
+            prop = st.selectbox('Weather property',list(weather.columns),key=f'property_{method}',format_func=lambda x:PROPERTIES[x][0])
+            name, unit, _ = PROPERTIES[prop]
+            left, right = st.columns(2)
+            if method=='SPC':
+                cutoff = left.number_input('DCT cutoff (days)',1.,365.,30.,key='cutoff')
+                multiplier = right.number_input('Robust standard deviations',.5,10.,3.,step=.5)
+                calculation = st.cache_data(ttl=600,max_entries=16,show_spinner=False)(spc)
+                result = calculation(weather[prop],cutoff,multiplier)
+                st.caption('Filtered residuals are used for limits and flags; they are not plotted. The default property is temperature.')
+            else:
+                share = left.slider('Target anomalies (%)',.1,10.,1.,step=.1)/100
+                neighbours = right.number_input('Neighbours',2,min(200,len(weather)-1),20)
+                calculation = st.cache_data(ttl=600,max_entries=16,show_spinner=False)(lof)
+                result = calculation(weather[prop],share,neighbours)
+                st.caption('LOF compares values with nearby values. A flag is not proof of a data error.')
+            visible = result.loc[str(start):str(end)]
+            a,b = st.columns(2)
+            a.metric('Flagged hours in view',int(visible.flag.sum()))
+            b.metric('Flagged share in view',f'{visible.flag.mean()*100:.2f}%' if len(visible) else 'No overlap')
+            st.plotly_chart(weather_plot(visible,f'{area_id(series)} · {name} · {method}',unit),width='stretch')
+            st.dataframe(visible.loc[visible.flag],width='stretch')
+            st.download_button('Download flags',visible.loc[visible.flag].to_csv().encode(),f'{prop}_{method}.csv','text/csv',key=f'download_{method}')
