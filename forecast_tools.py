@@ -1,5 +1,6 @@
 """Recursive forecasts. Future weather must be supplied or assumed."""
 import warnings
+from threadpoolctl import threadpool_limits
 import numpy as np
 import pandas as pd
 from statsmodels.tsa.statespace.sarimax import SARIMAX
@@ -39,7 +40,10 @@ def sarimax_forecast(y, steps=12, order=(1,1,0), seasonal=(0,0,0,52),
         raise ValueError('Seasonal SARIMAX needs at least two full seasonal cycles.')
     if exog is not None and (future_exog is None or len(future_exog)!=steps or list(exog.columns)!=list(future_exog.columns) or not np.isfinite(future_exog.to_numpy()).all()):
         raise ValueError('Provide one complete future weather row per forecast week.')
-    with warnings.catch_warnings(record=True) as caught:
+    states = max(order[0] + seasonal[0]*seasonal[3], order[2] + seasonal[2]*seasonal[3] + 1) + order[1] + seasonal[1]*seasonal[3]
+    if states > 110 or len(y) > 520:
+        raise ValueError('For this shared app, use a smaller seasonal model and at most 10 years of training data.')
+    with threadpool_limits(limits=1), warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter('always')
         try:
             fitted = SARIMAX(y, exog=exog, order=order, seasonal_order=seasonal, trend=trend,

@@ -1,8 +1,23 @@
+from io import BytesIO
 import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
 from reservoir_data import choose_area
 from analysis import stl_analysis, spectrogram_analysis
+
+@st.cache_data(ttl=3600, max_entries=12, show_spinner=False)
+def pattern_plot(method, filling, first, second, robust, label):
+    if method == 'STL':
+        fig, table = stl_analysis(filling, first, second, robust, label)
+    else:
+        fig, table = spectrogram_analysis(filling, first, second, label)
+    image = BytesIO()
+    try:
+        fig.savefig(image, format='png', dpi=110)
+    finally:
+        plt.close(fig)
+    return image.getvalue(), table
+
 
 st.title("Reservoir Patterns")
 st.write("Separate long-term movement from annual seasonality, then inspect how periodic patterns change over time.")
@@ -29,34 +44,45 @@ st.caption("Source: MongoDB Atlas (NVE observations) · weekly filling (%) · no
 stl_tab, spectral_tab = st.tabs(["STL decomposition", "Spectrogram"])
 with stl_tab:
     st.subheader("Trend, seasonality and residuals")
-    left, middle, right = st.columns(3)
-    seasonal = left.number_input("Seasonal smoother (odd)", min_value=7, max_value=101, value=13, step=2)
-    trend = middle.number_input("Trend smoother (weeks, odd)", min_value=53, max_value=521, value=89, step=2)
-    robust = right.checkbox("Robust fitting", value=True)
-    try:
-        fig, components = stl_analysis(filling, int(seasonal), int(trend), robust, label)
-    except ValueError as error:
-        st.warning(str(error))
+    with st.form('stl_settings'):
+        left, middle, right = st.columns(3)
+        seasonal = left.number_input("Seasonal smoother (odd)", min_value=7, max_value=101, value=13, step=2)
+        trend = middle.number_input("Trend smoother (weeks, odd)", min_value=53, max_value=521, value=89, step=2)
+        robust = right.checkbox("Robust fitting", value=True)
+        run_stl = st.form_submit_button('Run STL')
+    context = (label, tuple(selected), int(seasonal), int(trend), robust)
+    if run_stl:
+        try:
+            with st.spinner('Finding trend and seasonality…'):
+                st.session_state['stl_plot'] = (context, pattern_plot('STL', filling, int(seasonal), int(trend), robust, label))
+        except ValueError as error:
+            st.warning(str(error))
+    saved = st.session_state.get('stl_plot')
+    if saved is None or saved[0] != context:
+        st.info('Choose settings and click Run STL. Use at least two years.')
     else:
-        st.pyplot(fig)
-        plt.close(fig)
-        st.caption("Annual period ≈ 52 weeks. Larger smoothers produce smoother components. Robust fitting reduces the influence of unusual observations. pp = percentage points.")
-        with st.expander("Decomposition values"):
-            st.dataframe(components, width="stretch")
-        st.download_button("Download STL components", components.to_csv().encode(), f"{label}_stl.csv", "text/csv")
+        image, components = saved[1]
+        st.image(image)
+        st.dataframe(components, width='stretch')
+        st.download_button('Download STL components', components.to_csv().encode(), f'{label}_stl.csv', 'text/csv')
 
 with spectral_tab:
-    st.subheader("Patterns through time")
-    left, right = st.columns(2)
-    window = int(left.number_input("Window length (weeks)", min_value=4, max_value=520, value=104, step=1))
-    overlap = int(right.number_input("Window overlap (weeks)", min_value=0, max_value=519, value=78, step=1))
-    try:
-        fig, spectrum = spectrogram_analysis(filling, window, overlap, label)
-    except ValueError as error:
-        st.warning(str(error))
+    with st.form('spectrogram_settings'):
+        left, right = st.columns(2)
+        window = int(left.number_input('Window length (weeks)', 4, 520, 104))
+        overlap = int(right.number_input('Window overlap (weeks)', 0, 519, 78))
+        run_spectrum = st.form_submit_button('Run spectrogram')
+    context = (label, tuple(selected), window, overlap)
+    if run_spectrum:
+        try:
+            with st.spinner('Finding periodic patterns…'):
+                st.session_state['spectrum_plot'] = (context, pattern_plot('Spectrum', filling, window, overlap, False, label))
+        except ValueError as error:
+            st.warning(str(error))
+    saved = st.session_state.get('spectrum_plot')
+    if saved is None or saved[0] != context:
+        st.info('Choose settings and click Run spectrogram.')
     else:
-        st.pyplot(fig)
-        plt.close(fig)
-        st.caption("Brighter bands indicate stronger periodic variation. The dashed line is the annual cycle. Longer windows improve frequency resolution but reduce time resolution; overlapping windows are not independent.")
-        st.download_button("Download spectral power", spectrum.to_csv().encode(), f"{label}_spectrogram.csv", "text/csv")
-
+        image, spectrum = saved[1]
+        st.image(image)
+        st.download_button('Download spectral power', spectrum.to_csv().encode(), f'{label}_spectrogram.csv', 'text/csv')

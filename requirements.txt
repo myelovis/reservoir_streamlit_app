@@ -14,5 +14,5 @@ pyshp
 scipy
 statsmodels
 scikit-learn
-
+threadpoolctl
 

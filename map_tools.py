@@ -16,8 +16,16 @@ def boundaries(kind):
     return read_areas(kind)
 
 
+@st.cache_data(show_spinner=False)
+def display_boundaries(kind):
+    areas = boundaries(kind).to_crs(3035)
+    areas.geometry = areas.geometry.simplify(250, preserve_topology=True)
+    return areas.to_crs(4326)
+
+
 def colour_map(outlines, colour_kind, property_name, start, end, selected):
-    shaded = boundaries(colour_kind).copy() if colour_kind in ('EL','VASS') else outlines.copy()
+    outlines = display_boundaries(str(outlines.area_type.iloc[0]))
+    shaded = display_boundaries(colour_kind).copy() if colour_kind in ('EL','VASS') else outlines.copy()
     legend, missing = None, []
     if colour_kind == 'Weather':
         values = []
