@@ -26,11 +26,6 @@ h3 { font-size: 1.5rem !important; letter-spacing: -0.025em; }
 [data-testid="stMetric"] { background: #edf5ee; border: 1px solid var(--border); border-radius: 10px; padding: 1rem; }
 [data-testid="stForm"] { background: #fff; border-color: var(--border); border-radius: 12px; }
 [data-testid="stDialog"] [role="dialog"] { background: #f7faf7; border: 1px solid var(--border); border-radius: 14px; }
-[data-testid="stDialog"] [role="dialog"]:has(.st-key-region_picker) {
-    width: calc(100vw - 32px); max-width: 1280px; max-height: calc(100dvh - 24px);
-}
-.st-key-region_picker, .st-key-region_picker [data-testid="stVerticalBlock"] { gap: 7px; }
-.st-key-region_picker [data-testid="stWidgetLabel"] p { font-size: .8rem; }
 /* Compact spacing on laptop screens; keep text at its normal readable size. */
 [data-testid="stMainBlockContainer"]:has(.st-key-home_heading) > [data-testid="stVerticalBlock"] { gap: 10px; }
 .st-key-home_heading [data-testid="stVerticalBlock"] { gap: 0; }
