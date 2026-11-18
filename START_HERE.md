@@ -81,6 +81,9 @@ VASS colours and outlines show an informative message until this file is present
 
 ## 3. Fill the local database, then upload it
 
+Just change the year from 2024 to 2025 to get the data for FULL year 2025
+The code works with full year data pack.
+
 ```bash
 python prepare_all_weather.py --year 2024
 ```
