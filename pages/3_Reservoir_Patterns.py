@@ -31,9 +31,14 @@ if len(series) < 104:
     st.stop()
 first, last = series.index.min().date(), series.index.max().date()
 default_start = max(first, (pd.Timestamp(last) - pd.DateOffset(years=5)).date())
-with settings('Analysis dates'):
-    selected = st.date_input("Reservoir analysis period", (default_start, last), min_value=first,
-                             max_value=last, key="reservoir_pattern_dates")
+from popup_ui import uses_home_selection
+if uses_home_selection():
+    from shared_ui import choose_period
+    selected = choose_period(series)
+else:
+    with settings('Analysis dates'):
+        selected = st.date_input("Reservoir analysis period", (default_start, last), min_value=first,
+                                 max_value=last, key="reservoir_pattern_dates")
 if len(selected) != 2:
     st.info("Choose a start and an end date.")
     st.stop()

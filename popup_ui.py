@@ -4,6 +4,11 @@ from contextvars import ContextVar
 import streamlit as st
 
 _panel = ContextVar('popup_controls', default=None)
+_shared = ContextVar('home_selection_only', default=False)
+
+
+def uses_home_selection():
+    return _shared.get()
 
 
 def in_popup():
@@ -15,11 +20,13 @@ def controls_panel():
 
 
 @contextmanager
-def popup_layout(panel):
+def popup_layout(panel, shared=False):
     token = _panel.set(panel)
+    selection = _shared.set(shared)
     try:
         yield
     finally:
+        _shared.reset(selection)
         _panel.reset(token)
 
 

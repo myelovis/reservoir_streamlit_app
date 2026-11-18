@@ -5,6 +5,11 @@ from reservoir_data import choose_area, METRICS
 
 page_title("Reservoir table")
 series = choose_area()
+from popup_ui import uses_home_selection
+if uses_home_selection():
+    from shared_ui import choose_period
+    start, end = choose_period(series)
+    series = series.loc[str(start):str(end)]
 first_month = series.index.min().to_period("M")
 month = series.loc[series.index.to_period("M") == first_month]
 st.caption(f"First available month: {first_month}. One row per imported field.")

@@ -82,6 +82,15 @@ def choose_area(default_kind="NO", default_number=0, panel=None, compact=False):
     if not kinds:
         st.info("No reservoir areas are available in the published Atlas dataset.")
         st.stop()
+    from popup_ui import uses_home_selection
+    if uses_home_selection():
+        kind = st.session_state.get('selected_area_type')
+        number = st.session_state.get('selected_area_number')
+        selected = df.loc[df.area_type.eq(kind) & df.area_number.eq(number)]
+        if selected.empty:
+            st.info('This area has no reservoir data. Choose another area on Home.')
+            st.stop()
+        return selected.sort_values('date_id').set_index('date_id')
     # Permanent keys survive Streamlit's cleanup of widgets on other pages.
     saved_kind = st.session_state.get("selected_area_type", default_kind)
     st.session_state["_area_type"] = saved_kind if saved_kind in kinds else kinds[0]

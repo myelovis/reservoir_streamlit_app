@@ -27,9 +27,15 @@ def open_analysis(label):
         with st.container(key='analysis_popup'):
             panel = st.container()
             if label != 'Electricity transfers':
-                with st.popover('Region and dates'):
-                    panel = st.container()
-            with popup_layout(panel):
+                state = st.session_state
+                if not all(key in state for key in ['selected_area_type', 'selected_area_number', 'selected_period']):
+                    st.info('Choose region and dates on Home first, then reopen this analysis.')
+                    return
+                start, end = state['selected_period']
+                kind, number = state['selected_area_type'], state['selected_area_number']
+                area = f'NO{number}' if kind in ('EL', 'NO') else f'VASS{number}'
+                st.caption(f'{area} · {start} to {end} · Change selection on Home')
+            with popup_layout(panel, shared=label != 'Electricity transfers'):
                 # Only run a known local page. Its calculations stay unchanged.
                 runpy.run_path(str(ROOT/'pages'/PAGES[label]), run_name='__main__')
     show()

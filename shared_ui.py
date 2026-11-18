@@ -11,7 +11,16 @@ def remember_dates():
 
 
 def choose_period(series, panel=None, compact=False):
-    from popup_ui import controls_panel, in_popup
+    from popup_ui import controls_panel, in_popup, uses_home_selection
+    if uses_home_selection():
+        dates = st.session_state.get('selected_period', ())
+        if len(dates) != 2 or dates[0] > dates[1]:
+            st.info('Choose a start and end date on Home.')
+            st.stop()
+        if series.loc[str(dates[0]):str(dates[1])].empty:
+            st.info('No reservoir observations in this period. Change the dates on Home.')
+            st.stop()
+        return tuple(dates)
     panel = controls_panel() if panel is None else panel
     compact = compact or in_popup()
     first, last = series.index.min().date(), series.index.max().date()
