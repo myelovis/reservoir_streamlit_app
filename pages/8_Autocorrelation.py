@@ -1,3 +1,4 @@
+from popup_ui import in_popup, page_title, settings
 """Check how weekly filling relates to its past values."""
 import numpy as np
 import plotly.graph_objects as go
@@ -22,13 +23,14 @@ def correlations(values, lags, difference):
     return [(a, a_limits), (p, p_limits)]
 
 
-st.title('ACF and PACF')
+page_title('ACF and PACF')
 series = choose_area(default_kind='EL', default_number=3)
 start, end = choose_period(series)
-with st.form('autocorrelation_settings'):
-    lags = st.slider('Lags (weeks)', 1, 52, 12)
-    difference = st.checkbox('Use weekly changes', value=True)
-    run = st.form_submit_button('Run ACF / PACF')
+with settings('ACF / PACF settings'):
+    with st.form('autocorrelation_settings'):
+        lags = st.slider('Lags (weeks)', 1, 52, 12)
+        difference = st.checkbox('Use weekly changes', value=True)
+        run = st.form_submit_button('Run ACF / PACF')
 
 context = (area_id(series), start, end, lags, difference)
 with explain_errors():
@@ -50,6 +52,6 @@ with explain_errors():
                             fill='tonexty', fillcolor='rgba(40,116,81,0.15)', name='Approx. 95% band')
             fig.add_bar(x=x, y=values[1:], marker_color='#287451', name=name)
             fig.update_layout(title=f'{area_id(series)} · {name}', xaxis_title='Lag (weeks)',
-                              yaxis_title='Correlation', template='plotly_white', height=380)
+                              yaxis_title='Correlation', template='plotly_white', height=300 if in_popup() else 380)
             st.plotly_chart(fig, width='stretch')
     st.caption('ACF includes indirect relationships; PACF adjusts for shorter lags. These bands are approximate. Correlation does not establish causation or select a model by itself.')

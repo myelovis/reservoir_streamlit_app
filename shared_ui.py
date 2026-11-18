@@ -11,7 +11,9 @@ def remember_dates():
 
 
 def choose_period(series, panel=None, compact=False):
-    panel = st.sidebar if panel is None else panel
+    from popup_ui import controls_panel, in_popup
+    panel = controls_panel() if panel is None else panel
+    compact = compact or in_popup()
     first, last = series.index.min().date(), series.index.max().date()
     default = (max(first, pd.Timestamp('2024-01-01').date()), min(last, pd.Timestamp('2024-12-31').date()))
     if default[0] > default[1]:

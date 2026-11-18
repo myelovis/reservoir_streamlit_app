@@ -18,12 +18,17 @@ def home():
             st.caption('NORWAY / WATER · WEATHER · ENERGY')
             st.title('Chronological Insights')
         with accent:
-            st.image(str(Path(__file__).parent / 'leaf.jpg'), width=68)
+            leaf = Path(__file__).parent / 'leaf.jpg'
+            if not leaf.exists():
+                leaf = leaf.with_suffix('.svg')
+            if leaf.exists():
+                st.image(str(leaf), width=58)
     st.write('Understand the past. Explore what comes next.')
     st.caption('[Magasinstatistikk](https://biapi.nve.no/magasinstatistikk/swagger/index.html) · '
                '[Open-Meteo / ERA5](https://open-meteo.com/en/docs/historical-weather-api) · '
                '[ENTSO-E](https://transparencyplatform.zendesk.com/hc/en-us/articles/15692855254548-Sitemap-for-Restful-API-Integration)')
     if st.button('Select region and dates →', type='primary'):
+        st.session_state.pop('analysis_popup_label', None)
         from region_picker import open_region_picker
         open_region_picker()
     columns = st.columns(3)
@@ -45,7 +50,11 @@ def home():
                       'Diagnose':'Patterns, unusual values and relationships.',
                       'Forecast':'Future filling with SARIMAX or Ridge.'}[title])
             for path, label in links:
-                st.page_link(path,label=label,icon=':material/arrow_outward:')
+                if st.button(label, icon=':material/arrow_outward:', key=f'open_{label}', type='tertiary', width='stretch'):
+                    st.session_state['analysis_popup_label'] = label
+    if st.session_state.get('analysis_popup_label'):
+        from analysis_popup import open_analysis
+        open_analysis(st.session_state['analysis_popup_label'])
     st.caption('NVE · ERA5 · ENTSO-E / Saved observations from MongoDB Atlas')
 
 

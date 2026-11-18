@@ -5,7 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
-COLORS = {"in": "#205b3d", "out": "#75a584"}
+COLORS = {"in": "#083d25", "out": "#9bcd61"}
 LABELS = {"in": "Into Norway (Import)", "out": "Out of Norway (Export)"}
 
 def clip_intervals(df, start, end):
@@ -34,14 +34,16 @@ def annual_totals(annual, year):
 
 def energy_donut(totals, year):
     fig, ax = plt.subplots(figsize=(7, 6), facecolor="#FCFCFC")
-    _, _, percentages = ax.pie(totals.energy_mwh,
+    wedges, _, percentages = ax.pie(totals.energy_mwh,
            labels=["Into Norway" if d == "in" else "Out of Norway" for d in totals.index],
            colors=[COLORS[d] for d in totals.index], autopct="%1.1f%%",
            startangle=140, pctdistance=0.75,
            wedgeprops={"width": 0.45, "edgecolor": "white", "linewidth": 2},
            textprops={"fontsize": 10})
-    for text in percentages:
-        text.set_color("white")
+    for wedge, text, direction in zip(wedges, percentages, totals.index):
+        if direction == 'out':
+            wedge.set_hatch('///')
+        text.set_color("white" if direction == 'in' else '#083d25')
         text.set_weight("bold")
     ax.text(0, 0, f"Total energy\n{totals.energy_mwh.sum():,.0f}\nMWh",
             ha="center", va="center", fontsize=11, fontweight="bold")
@@ -98,7 +100,8 @@ def power_lines(annual, months):
             ax.plot(
                 x, y,
                 color=COLORS.get(direction, "#287451"),
-                linewidth=1.5,
+                linewidth=2,
+                linestyle='-' if direction == 'in' else '--',
                 label=f"NO2–DK1: {LABELS.get(direction, direction)}"
             )
 
@@ -107,7 +110,8 @@ def power_lines(annual, months):
         ax.xaxis.set_major_formatter(
             mdates.ConciseDateFormatter(locator, tz=ZoneInfo("Europe/Oslo"))
         )
-        ax.legend(fontsize=9)
+        ax.legend(fontsize=9, loc='upper center', bbox_to_anchor=(.5, 1.02), ncol=2,
+                  framealpha=1, handlelength=3)
 
     ax.set(
         title="NO2–DK1: reported power flows",
@@ -117,10 +121,5 @@ def power_lines(annual, months):
     ax.grid(linestyle="--", alpha=0.3)
     fig.tight_layout()
     
-    return fig
-    if not selected.empty:
-        ax.legend(fontsize=9)
-    ax.grid(linestyle="--", alpha=0.3)
-    fig.tight_layout()
     return fig
 

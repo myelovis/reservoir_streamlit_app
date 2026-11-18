@@ -63,7 +63,9 @@ def _remember_number():
 
 
 def choose_area(default_kind="NO", default_number=0, panel=None, compact=False):
-    panel = st.sidebar if panel is None else panel
+    from popup_ui import controls_panel, in_popup
+    panel = controls_panel() if panel is None else panel
+    compact = compact or in_popup()
     try:
         df = load_reservoirs()
     except (AtlasSetupError, DatasetNotReady) as error:

@@ -1,14 +1,16 @@
+from popup_ui import in_popup, page_title, settings
 import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
 from reservoir_data import choose_area, METRICS, reservoir_plot
 
-st.title("Megasinstatstikk Data Filter")
+page_title("Reservoir plots")
 series = choose_area()
 months = series.index.to_period("M").unique().sort_values().astype(str).tolist()
-first, last = st.select_slider("Months", options=months, value=(months[0], months[0]))
-column = st.selectbox("Measure", [*METRICS, "All measures"],
-                      format_func=lambda name: METRICS.get(name, name))
+with settings('Plot settings'):
+    first, last = st.select_slider("Months", options=months, value=(months[0], months[0]))
+    column = st.selectbox("Measure", [*METRICS, "All measures"],
+                          format_func=lambda name: METRICS.get(name, name))
 periods = series.index.to_period("M")
 selected = series.loc[(periods >= pd.Period(first)) & (periods <= pd.Period(last))]
 if selected.empty:
