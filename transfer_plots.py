@@ -57,7 +57,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
-def power_lines(annual, months):
+def power_lines(annual, months, compact=False):
     if annual.empty:
         fig, ax = plt.subplots(figsize=(11, 4.5), facecolor="#FCFCFC")
         ax.set(title="NO2–DK1: reported power flows", xlabel="Time (Europe/Oslo)", ylabel="Power (MW)")
@@ -81,7 +81,7 @@ def power_lines(annual, months):
     else:
         selected = annual.iloc[:0]
 
-    fig, ax = plt.subplots(figsize=(11, 4.5), facecolor="#FCFCFC")
+    fig, ax = plt.subplots(figsize=(12, 3.3 if compact else 4.5), facecolor="#FCFCFC")
 
     if not selected.empty:
         for direction, group in selected.groupby("direction"):
@@ -100,7 +100,7 @@ def power_lines(annual, months):
             ax.plot(
                 x, y,
                 color=COLORS.get(direction, "#287451"),
-                linewidth=2,
+                linewidth=1.4,
                 linestyle='-' if direction == 'in' else '--',
                 label=f"NO2–DK1: {LABELS.get(direction, direction)}"
             )
@@ -110,15 +110,17 @@ def power_lines(annual, months):
         ax.xaxis.set_major_formatter(
             mdates.ConciseDateFormatter(locator, tz=ZoneInfo("Europe/Oslo"))
         )
-        ax.legend(fontsize=9, loc='upper center', bbox_to_anchor=(.5, 1.02), ncol=2,
-                  framealpha=1, handlelength=3)
+        ax.legend(fontsize=9, loc='lower left', bbox_to_anchor=(0, 1.02), ncol=2,
+                  frameon=False, handlelength=3, borderaxespad=0)
 
     ax.set(
-        title="NO2–DK1: reported power flows",
         xlabel="Time (Europe/Oslo)",
         ylabel="Power (MW)"
     )
-    ax.grid(linestyle="--", alpha=0.3)
+    if not compact:
+        ax.set_title('NO2–DK1: reported power flows', pad=38)
+    ax.grid(linestyle="--", alpha=0.15)
+    ax.spines[['top', 'right']].set_visible(False)
     fig.tight_layout()
     
     return fig
