@@ -45,6 +45,10 @@ def load_weather(region_id, year):
             '$lt': pd.Timestamp(f'{year+1}-01-01', tz='UTC').to_pydatetime()}}
         collection, metadata = db.era5_hourly, db.era5_datasets
     if not meta or meta.get('status') != 'complete':
+        if region_id.startswith('VASS'):
+            raise DatasetNotReady(f'No ERA5 weather is published for {region_id} in {year}. '
+                                  'Its map boundary does not include weather observations. '
+                                  'Choose a prepared region/year while the app owner publishes VASS weather.')
         raise DatasetNotReady(f'Prepare {region_id}, {year} locally, then run publish_local.py --year {year}.')
     count = meta.get('sample_count', meta.get('source_sample_count', 0))
     if count < 1 or meta.get('region_id') != region_id or meta.get('year') != year or meta.get('model') != 'era5':
@@ -57,7 +61,8 @@ def load_weather(region_id, year):
     if meta.get('hours') != len(result):
         raise ValueError('Weather row count does not match its metadata.')
     method = meta.get('sampling_method', 'original samples')
-    return result, f'Atlas · {region_id} · {year} · {count} samples · {method}'
+    note = ' · approximate administrative-region boundaries' if meta.get('boundary_status') == 'approximate' else ''
+    return result, f'Atlas · {region_id} · {year} · {count} samples · {method}{note}'
 
 
 @st.cache_data(ttl=600, show_spinner=False)
