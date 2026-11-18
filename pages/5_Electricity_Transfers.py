@@ -16,18 +16,20 @@ if df.empty:
     st.info('No transfer observations are available. Publish the Part 2 data first.')
     st.stop()
 
-left, middle, right = st.columns([2, 1, 1])
-connection = left.selectbox('Connection', sorted(df.connection.unique()))
-connection_df = df.loc[df.connection.eq(connection)]
-years = sorted(connection_df.year.unique(), reverse=True)
-completed = pd.Timestamp.now(tz='Europe/Oslo').year - 1
-year = int(middle.selectbox('Year', years, index=years.index(completed) if completed in years else 0))
-if right.button('Refresh data'):
-    load_transfers.clear()
-    st.rerun(scope='fragment' if in_popup() else 'app')
+with (st.popover('Connection and year') if in_popup() else st.container()):
+    left, middle, right = (st.container(), st.container(), st.container()) if in_popup() else st.columns([2,1,1])
+    connection = left.selectbox('Connection', sorted(df.connection.unique()))
+    connection_df = df.loc[df.connection.eq(connection)]
+    years = sorted(connection_df.year.unique(), reverse=True)
+    completed = pd.Timestamp.now(tz='Europe/Oslo').year - 1
+    year = int(middle.selectbox('Year', years, index=years.index(completed) if completed in years else 0))
+    if right.button('Refresh data'):
+        load_transfers.clear()
+        st.rerun(scope='fragment' if in_popup() else 'app')
 annual = connection_df.loc[connection_df.year.eq(year)]
 totals = annual_totals(annual, year)
-st.caption('Dark solid = into Norway / import · light dashed = out of Norway / export')
+if not in_popup():
+    st.caption('Dark solid = into Norway / import · light dashed = out of Norway / export')
 energy, flow, records = st.tabs(['1 · Energy', '2 · Power flow', '3 · Records & method'])
 
 with energy:
@@ -57,12 +59,13 @@ with energy:
             st.info('No positive energy was reported for this year.')
 
 with flow:
-    months = st.multiselect('Months', list(range(1,13)), default=[1], format_func=lambda m:calendar.month_abbr[m])
+    summary, filters = st.columns([6,1])
+    with filters.popover('Months', icon=':material/filter_alt:', width='stretch'):
+        months = st.multiselect('Choose months', list(range(1,13)), default=[1],
+                               format_func=lambda m:calendar.month_abbr[m])
+    summary.caption('Hourly power · '+(', '.join(calendar.month_abbr[m] for m in sorted(months)) or 'No months selected'))
     if months and annual.time.dt.tz_convert('Europe/Oslo').dt.month.isin(months).any():
-        fig = power_lines(annual, months)
-        if in_popup():
-            fig.set_size_inches(12, 2.3)
-            fig.tight_layout()
+        fig = power_lines(annual, months, compact=in_popup())
         st.pyplot(fig)
         plt.close(fig)
     else:
