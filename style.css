@@ -49,3 +49,38 @@ h3 { font-size: 1.5rem !important; letter-spacing: -0.025em; }
     [data-testid="stMainBlockContainer"] { padding-top: 1.5rem; }
     .st-key-home_explore, .st-key-home_diagnose, .st-key-home_forecast { min-height: auto; padding: 1rem !important; }
 }
+
+/* Three equal cards with soft green stripes. */
+.st-key-home_explore, .st-key-home_diagnose, .st-key-home_forecast {
+    box-sizing: border-box;
+    background-color: #edf5ee;
+    background-image: repeating-linear-gradient(
+        135deg,
+        rgba(40, 116, 81, .055) 0,
+        rgba(40, 116, 81, .055) 2px,
+        transparent 2px,
+        transparent 14px
+    );
+    border: 1px solid #ccdfd0;
+    border-radius: 12px;
+    padding: 1.1rem !important;
+}
+.st-key-home_explore button:hover,
+.st-key-home_diagnose button:hover,
+.st-key-home_forecast button:hover {
+    background: #deece1;
+    color: #153f31;
+}
+@media (min-width: 701px) {
+    .st-key-home_explore, .st-key-home_diagnose, .st-key-home_forecast {
+        height: 370px;
+        min-height: 370px;
+        overflow-y: auto;
+    }
+}
+@media (max-width: 700px) {
+    .st-key-home_explore, .st-key-home_diagnose, .st-key-home_forecast {
+        height: auto;
+        min-height: 0;
+    }
+}
