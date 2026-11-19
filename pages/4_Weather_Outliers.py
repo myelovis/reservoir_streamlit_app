@@ -1,22 +1,23 @@
 from datetime import date
 import matplotlib.pyplot as plt
 import streamlit as st
-from reservoir_data import choose_area
-from weather_data import load_weather
-from atlas_data import AtlasSetupError, DatasetNotReady
+from reservoir_app.reservoirs import choose_area
+from reservoir_app.weather import load_weather
+from reservoir_app.areas import weather_region_id
+from reservoir_app.tables import display_dataframe
+from reservoir_app.atlas import AtlasSetupError, DatasetNotReady
 from pymongo.errors import PyMongoError
-from analysis import precipitation_spc, temperature_lof
+from reservoir_app.analysis import precipitation_spc, temperature_lof
 
 st.title("Weather Outliers")
 st.write("Explore unusual precipitation and temperature in hourly ERA5 regional averages.")
 series = choose_area(default_kind="EL", default_number=3)
 kind, number = series.area_type.iloc[0], int(series.area_number.iloc[0])
-if kind != "EL":
-    st.info("Select area type EL to analyse ERA5 electricity-area data. National and watercourse boundaries use different definitions; their weather data is not substituted with NO3.")
-    st.stop()
-region_id = f"NO{number}"
+region_id = weather_region_id(kind, number)
+
 year = int(st.number_input("Weather year (complete calendar year)", min_value=1940,
                            max_value=date.today().year - 1, value=2024, step=1))
+
 dataset_key = f"{region_id}_{year}"
 st.caption(f"Selected weather: {region_id} · {year} · ERA5 · UTC · temperature °C · precipitation mm/hour")
 
@@ -59,7 +60,7 @@ with spc_tab:
         plt.close(fig)
         st.caption("Median and normal-scaled MAD are estimated from the full year of DCT high-pass residuals. Residuals/SATV are not plotted; limits are translated back to precipitation units. Negative lower limits are statistical bounds, not negative rainfall.")
         outliers = results.loc[results.outlier]
-        st.dataframe(outliers, width="stretch")
+        display_dataframe(outliers, width="stretch")
         st.download_button("Download precipitation outliers", outliers.to_csv().encode(), f"{dataset_key}_spc_outliers.csv", "text/csv")
 
 with lof_tab:
@@ -79,5 +80,5 @@ with lof_tab:
         plt.close(fig)
         st.caption("LOF compares neighbours in temperature-value space; it does not model seasonal or temporal context. The target proportion sets the threshold; ties can change the exact count. Flags indicate unusual values, not proven data errors.")
         anomalies = results.loc[results.anomaly]
-        st.dataframe(anomalies, width="stretch")
+        display_dataframe(anomalies, width="stretch")
         st.download_button("Download temperature anomalies", anomalies.to_csv().encode(), f"{dataset_key}_lof_anomalies.csv", "text/csv")

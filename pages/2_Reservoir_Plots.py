@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
-from reservoir_data import choose_area, METRICS, reservoir_plot
+from reservoir_app.reservoirs import choose_area, METRICS, reservoir_plot
 
 st.title("Megasinstatstikk Data Filter")
 series = choose_area()

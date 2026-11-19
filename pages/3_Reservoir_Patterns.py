@@ -1,8 +1,9 @@
+from reservoir_app.tables import display_dataframe
 import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
-from reservoir_data import choose_area
-from analysis import stl_analysis, spectrogram_analysis
+from reservoir_app.reservoirs import choose_area
+from reservoir_app.analysis import stl_analysis, spectrogram_analysis
 
 st.title("Reservoir Patterns")
 st.write("Separate long-term movement from annual seasonality, then inspect how periodic patterns change over time.")
@@ -42,7 +43,7 @@ with stl_tab:
         plt.close(fig)
         st.caption("Annual period ≈ 52 weeks. Larger smoothers produce smoother components. Robust fitting reduces the influence of unusual observations. pp = percentage points.")
         with st.expander("Decomposition values"):
-            st.dataframe(components, width="stretch")
+            display_dataframe(components, width="stretch")
         st.download_button("Download STL components", components.to_csv().encode(), f"{label}_stl.csv", "text/csv")
 
 with spectral_tab:

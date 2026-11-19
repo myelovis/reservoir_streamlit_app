@@ -1,142 +1,111 @@
-# Norwegian Reservoirs, Weather and Electricity Dashboard
+# Norwegian Reservoirs, Weather and Electricity — Part 3
 
-Streamlit project covering Parts 1–3 of IND320 Data til Beslutning.
-**All dashboard plot data is read from MongoDB Atlas. No weather CSVs or data folders are required in GitHub.** APIs are used upstream by the notebook/ingestion scripts, not by plot reruns.
-
-## Parts 1–3 and navigation
-
-1. **Home** — project overview and data flow.
-2. **Reservoir Overview** — measurement table and first-month sparklines.
-3. **Reservoir Plots** — area/month selection and original or normalised measurements.
-4. **Reservoir Patterns** — tabs for STL decomposition and the spectrogram.
-5. **Weather Outliers** — tabs for precipitation DCT/SPC and temperature LOF.
-6. **Electricity Transfers** — the existing Part 2 NO2–DK1 transfer report.
-
-The shared area selection follows the user between reservoir and analysis pages. Weather supports electricity areas NO1–NO5; it never substitutes NO3 for an area with missing data.
-
-## Atlas collections: keep Parts 2 and 3 separate
-
-```text
-Cluster0 / nve
-    simple_transfers       Part 2: existing electricity transfer records
-    era5_samples           Part 3: existing sample coordinates
-    era5_hourly            Part 3: existing hourly regional weather averages
-    era5_datasets          Part 3: weather publication status and metadata
-    reservoir_weekly       NVE weekly reservoir observations
-    reservoir_datasets     Reservoir publication status and metadata
-```
-
-The app reads its existing `era5_hourly` and `era5_datasets` records. Weather queries require the chosen region, model ERA5 and exact calendar year. The complete publication marker, 1,000 source samples, full-year timestamps, row count and finite values are validated before plotting.
-
-## One-time setup
+Streamlit dashboard for IND320 parts 1–3.
 
 ```bash
 pip install -r requirements.txt
-```
-
-Configure `MONGO_URI` in Streamlit Cloud **App settings → Secrets**, using your existing full connection URI. Locally use an environment variable or an uncommitted `.streamlit/secrets.toml`:
-
-```toml
-MONGO_URI = "mongodb+srv://YOUR_DATABASE_USER:ENCODED_DATABASE_PASSWORD@YOUR_CLUSTER/?authSource=admin"
-```
-
-Never commit a real password or connection URI. The deployed app needs read permission on the collections above and Atlas Network Access allowing its connection. The notebook/publisher needs write permission; these may use different database users.
-
-### Publish the NVE reservoir data once
-
-The earlier weather upload does not include reservoir filling observations. To make **STL, spectrogram and the original reservoir plots** read Atlas too, publish the separate NVE dataset:
-
-```bash
-python publish_atlas.py --reservoirs
-```
-
-It uses `MONGO_URI` from the environment or asks privately for the full URI. It fetches the NVE API, validates it, and upserts reservoir records by area type, area number and observation date. It does not create a full new history on every run. A publication marker prevents reading a partially updated dataset. It does not write to `simple_transfers`, `era5_hourly` or `era5_samples`.
-
-To call it from Jupyter using the URI you already prepared:
-
-```python
-from publish_atlas import publish_reservoirs
-print("Reservoir records published:", publish_reservoirs(uri))
-```
-
-Run this periodically if you want newly published NVE observations. It is not automatically run on every dashboard visit.
-
-### Run Streamlit
-
-```bash
 streamlit run app.py
 ```
 
-For your verified weather data, select **EL → 3 → 2024**. No upload, CSV folder or ERA5 re-download is needed. Refresh buttons clear the short in-memory cache and reread Atlas; they do not write records.
+Set `MONGO_URI` in Streamlit Cloud Secrets or the local environment. Never commit
+credentials. The deployed app reads Atlas; page reruns do not upload records or
+download weather from Open-Meteo.
 
-## Analysis controls
+## Reuse existing data
 
-- **STL:** weekly filling percentages, approximate 52-week annual cycle, seasonal smoother 13, trend smoother 89, robust mode true; selectable multi-year period and CSV component download.
-- **Spectrogram:** window 104 weeks, overlap 78; annual frequency marker and spectral-power download. At least two complete windows are needed.
-- **Precipitation SPC:** full-year regional averages, DCT cutoff period 30 days and robust sigma multiplier 3. Median and normal-scaled MAD are estimated from residuals over the entire year. The plot shows original precipitation, boundaries and flagged points; residuals/SATV are not plotted.
-- **Temperature LOF:** default target proportion 1%, 20 neighbours; actual counts/share, scores and flagged-data download. Neighbours are in temperature-value space, not seasonal/temporal context.
+The Part 3 app reuses weather already published by Part 4. **The Part 4 branch,
+app and stored data remain unchanged.** No re-download or re-upload is needed.
 
-STL/spectrogram use NVE filling levels. SPC/LOF use ERA5 weather. Statistical flags are not proof of data errors. Missing weeks/hours and invalid parameters are reported rather than silently filled.
+| Shared selection | Weather region ID |
+|---|---|
+| National NO / 0 | `NO0` |
+| Electricity EL / 1–5 | `NO1`–`NO5` |
+| Watercourse VASS / 1–3 | `VASS1`–`VASS3` |
 
-## Compact storage for a 512 MB cluster
+Weather reads `nve.era5_datasets_v4` and `nve.era5_hourly_v4` first, using the
+existing `era5_{region}_{year}_n200_v4` publication IDs. When a Part 4 publication
+does not exist, it checks the original `era5_datasets` / `era5_hourly` publication.
+It never substitutes a different region. The original weather-year input is
+preserved. Missing data for a selected area/year shows a message.
 
-Store regional averages, not all point-hour combinations:
+Part 4's 200 points per electricity area and weighted derived areas are accepted
+using their own metadata. The loader checks region, model, publication stability,
+complete UTC hours, row count and finite values. Approximate-boundary notes in
+metadata are displayed. Part 3's 1,000-per-area constraint is not applied to Part 4.
 
-- NO3, 2024: **8,784 hourly weather records** plus 1,000 coordinate records.
-- All five electricity areas for 2024: **43,920 hourly averages** plus 5,000 coordinate records, only if all five have actually been ingested.
-- Do not publish the 8,784,000 point-hour rows implied by 1,000 samples per region.
-- Upserts and unique indexes avoid duplicate records on retries. The app itself is read-only.
-- Check total Atlas usage, including Part 2 collections and indexes. No existing data is automatically deleted.
+Reservoirs still read `reservoir_weekly` / `reservoir_datasets`. Electricity
+transfers still read `simple_transfers`. The app changes none of these collections.
 
-Only NO3/2024 (AREA = EL > 3) is required. Other regions display a missing-publication message until their own weather data is available in Atlas.
+## Pages and controls
 
-## Files
+1. Reservoir Overview: table and first-month sparklines.
+2. Reservoir Plots: area, month and measurement selection.
+3. Reservoir Patterns: STL and spectrogram tabs.
+4. Weather Outliers: precipitation DCT/SPC and temperature LOF tabs.
+5. Electricity Transfers: NO2–DK1 energy, coverage and power flows.
+
+Area selection is shared between reservoir and weather pages. SPC defaults to a
+30-day DCT cutoff and three robust standard deviations estimated over the whole
+selected year. LOF defaults to 1% and 20 neighbours. Statistical flags do not prove
+data errors. STL uses weekly filling percentages.
+
+## Deployment and tables
+
+Runtime dependencies explicitly include Streamlit, PyArrow and NumPy versions with
+Python 3.14 binary wheels. Spark, Cassandra and Jupyter are local coursework tools,
+kept out of the cloud environment. Streamlit Cloud rebuilds after requirements
+changes; reboot the app in Cloud settings if an old native environment persists.
+
+Tables use scalar schemas and float lists for measurement sparklines. If a native
+Arrow import fails during a rebuild, an escaped HTML table provides a readable
+fallback, without interactive sorting or sparklines.
+
+## Structure
 
 ```text
-app.py, reservoir_data.py, atlas_data.py, weather_data.py, analysis.py
-publish_atlas.py, era5_module.py, prepare_weather.py
-transfer_data.py, transfer_plots.py, requirements.txt
-pages/1_Reservoir_Table.py
-pages/2_Reservoir_Plots.py
-pages/3_Electricity_Transfers.py
-pages/4_Reservoir_Patterns.py
-pages/5_Weather_Outliers.py
-tests/
+app.py                         Entry point; deployment path unchanged
+pages/                         Part 3 page layouts and controls
+reservoir_app/
+    atlas.py                   Shared Atlas connection
+    areas.py                   Region identities
+    reservoirs.py              Reservoir loader, selection and plots
+    weather.py                 Existing Part 4 / Part 3 weather loader
+    transfers.py               Transfer loader
+    analysis.py                STL, spectrogram, SPC and LOF
+    transfer_plots.py           Electricity charts
+    tables.py                  Formatting and display fallback
+scripts/
+    era5.py                    Optional original notebook ingestion helper
+    publish_atlas.py            Optional notebook reservoir publisher
+jupyter notebooks/             Coursework notebook and submitted PDFs
+geo-nve-atlas_data/             Original electricity shapefile components
+tests/                         Regression tests
+requirements.txt               Cloud app dependencies
+requirements-notebook.txt      Optional local notebook dependencies
 ```
 
-`era5_module.py` and `prepare_weather.py` remain optional upstream tools for missing datasets. They are not imported by the plot loaders and do not run when sliders change. The sampler uses a local electricity shapefile if present, otherwise the official NVE boundary service. No NO1–NO5 weather or shapefile uploads to GitHub are needed for existing Atlas datasets.
+Removed legacy files: `reservoirs.csv`, CSV-only `utils.py`, broken
+`prepare_weather.py`, notebook checkpoint, and an accidentally committed terminal
+diff. Git history retains them. Notebook imports use the new package paths and
+find the repository from the notebook folder. Saved outputs are preserved.
 
+Optional scripts never run during normal app operation. Existing Part 4 weather
+is reused directly; no ingestion or publishing is needed.
 
-## Sources and attribution
+## Checks
 
-- [NVE Magasinstatistikk API](https://biapi.nve.no/magasinstatistikk/swagger/index.html): reservoir observations published upstream to Atlas.
-- [NVE Atlas](https://atlas.nve.no/): region boundaries for sampling; NVE/NLOD attribution applies.
-- [Open-Meteo Historical Weather API](https://open-meteo.com/en/docs/historical-weather-api): ECMWF ERA5 reanalysis, downloaded upstream through the module.
-- [ENTSO-E](https://transparency.entsoe.eu/): Part 2 transfer observations, processed through Spark/Cassandra and published to Atlas.
-
-## Project Structure
-
-```text
-.
-├── pages/                         # Streamlit pages
-│   ├── 1_Reservoir_Table.py        # Reservoir tables and sparklines
-│   ├── 2_Reservoir_Plots.py        # Filtered reservoir plots
-│   ├── 3_Reservoir_Patterns.py     # STL and spectrogram tabs
-│   ├── 4_Weather_Outliers.py       # Precipitation SPC and temperature LOF
-│   └── 5_Electricity_Transfers.py  # Part 2 electricity-transfer report
-├── README.md                      # Documentation and setup
-├── app.py                         # Application entry point and navigation
-├── requirements.txt               # Python dependencies
-├── atlas_data.py                  # Shared MongoDB Atlas connection
-├── reservoir_data.py              # Reservoir loading and area selection
-├── weather_data.py                # ERA5 loading and validation
-├── analysis.py                    # STL, spectrogram, SPC and LOF functions
-├── era5_module.py                 # Spatial sampling and ERA5 API ingestion
-├── prepare_weather.py             # Optional local weather preparation
-├── transfer_data.py               # Transfer data loading
-├── transfer_plots.py              # Electricity-transfer charts
-├── reservoirs.csv                 # Legacy reservoir dataset
-└── utils.py                       # Legacy utility functions
+```bash
+pip install pytest
+python -m pytest -q
 ```
 
-The deployed Atlas-based pages do not require weather CSVs in GitHub.
+Tests use fixtures, not live database writes. They cover all nine area identities,
+Part 4 precedence, Part 3 fallback, invalid/missing weather, Arrow conversion,
+native-import fallback, and page rendering with shared area changes.
+
+## Sources
+
+- [NVE Magasinstatistikk](https://biapi.nve.no/magasinstatistikk/swagger/index.html)
+- [NVE Atlas](https://atlas.nve.no/)
+- [Open-Meteo historical ERA5 data](https://open-meteo.com/en/docs/historical-weather-api)
+- [ENTSO-E](https://transparency.entsoe.eu/)

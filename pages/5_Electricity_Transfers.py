@@ -1,9 +1,10 @@
+from reservoir_app.tables import display_dataframe
 import calendar
 import pandas as pd
 import matplotlib.pyplot as plt
 import streamlit as st
-from transfer_data import load_transfers
-from transfer_plots import annual_totals, energy_donut, power_lines
+from reservoir_app.transfers import load_transfers
+from reservoir_app.transfer_plots import annual_totals, energy_donut, power_lines
 
 st.set_page_config(page_title="Electricity Transfers", layout="wide")
 st.title("Norway–Denmark electricity transfers")
@@ -34,7 +35,7 @@ with left:
     year = int(st.selectbox("Year", years, index=default))
     annual = connection_df.loc[connection_df.year.eq(year)]
     totals = annual_totals(annual, year)
-    st.dataframe(totals.rename(index={"in":"Into Norway", "out":"Out of Norway"}), width="stretch")
+    display_dataframe(totals.rename(index={"in":"Into Norway", "out":"Out of Norway"}), width="stretch")
     if len(totals) < 2 or (totals.coverage_pct < 99.999).any():
         st.warning("Incomplete annual coverage. The chart shows reported totals, not a complete annual balance.")
     if (totals.coverage_pct > 100.001).any():
@@ -77,4 +78,4 @@ with st.expander("Data source and method"):
     """)
     st.link_button("ENTSO-E API reference", "https://documenter.getpostman.com/view/7009892/2s93JtP3F6")
 st.subheader("Spark-extracted records")
-st.dataframe(annual.head(100), width="stretch")
+display_dataframe(annual.head(100), width="stretch")
