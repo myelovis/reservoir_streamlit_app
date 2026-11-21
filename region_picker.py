@@ -50,6 +50,5 @@ def open_region_picker():
                         st.session_state['selected_area_type'] = chosen.area_type
                         st.session_state['selected_area_number'] = int(chosen.area_number)
                         st.rerun(scope='fragment')
-            st.caption(f'{area_id(series)} · {start} to {end} · Click an area to select it.')
             if missing:
                 st.info('No prepared weather: ' + ', '.join(missing))
