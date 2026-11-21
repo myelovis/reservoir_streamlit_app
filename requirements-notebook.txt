@@ -1,7 +1,0 @@
--r requirements.txt
-# Optional local ingestion and coursework tools, not loaded by Streamlit.
-geopandas==1.2.0
-ipykernel
-jupyterlab
-pyspark==3.5.9; python_version < "3.13"
-cassandra-driver; python_version < "3.13"
