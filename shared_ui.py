@@ -57,11 +57,13 @@ def choose_period(series, panel=None, compact=False, weather_dates=False):
     saved = (max(first, min(saved[0], last)), max(first, min(saved[1], last)))
     if compact:
         # Separate fields keep each date readable in a narrow control panel.
-        for key, value in zip(['_picker_start', '_picker_end'], saved):
+        # Rebuild the calendar when the available range changes.
+        date_keys = [f'_picker_{part}_v2_{first}_{last}' for part in ['start', 'end']]
+        for key, value in zip(date_keys, saved):
             if key not in st.session_state or not first <= st.session_state[key] <= last:
                 st.session_state[key] = value
-        start = panel.date_input('Start date', min_value=first, max_value=last, key='_picker_start', format='YYYY-MM-DD')
-        end = panel.date_input('End date', min_value=first, max_value=last, key='_picker_end', format='YYYY-MM-DD')
+        start = panel.date_input('Start date', min_value=first, max_value=last, key=date_keys[0], format='YYYY-MM-DD')
+        end = panel.date_input('End date', min_value=first, max_value=last, key=date_keys[1], format='YYYY-MM-DD')
         if start > end:
             st.info('Start date must be before end date.')
             st.stop()
