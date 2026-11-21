@@ -31,7 +31,9 @@ with explain_errors():
 with settings('Forecast settings'):
     with st.form('forecast_controls'):
         a, b, c = st.columns(3)
-        history = a.number_input('History (weeks)', 37, min(520, len(observed)), min(208, len(observed)))
+        history = a.number_input('History (weeks)', min_value=37, max_value=len(observed),
+                                 value=len(observed),
+                                 help='Defaults to all reservoir weeks in the selected period.')
         holdout = b.number_input('Holdout (weeks)', 1, min(52, int(history)-24), min(13, int(history)-24))
         horizon = c.number_input('Future (weeks)', 1, 52, 13)
         properties = st.multiselect('Weather inputs', list(PROPERTIES)[:2],
@@ -68,7 +70,7 @@ with settings('Forecast settings'):
                 parameters['alpha'] = b.number_input('Ridge penalty', .01, 100., 1.)
         scenario = st.selectbox('Weather assumption', ['Recent mean', 'Training seasonal mean', 'Upload CSV'])
         upload = st.file_uploader('Optional future weather CSV: date and selected property columns', type='csv')
-        st.caption('Weather must cover the selected history. Available downloads currently cover 2024. Future weather is an assumption.')
+        st.caption('Weather must cover every selected history week. Future weather is an assumption.')
         submitted = st.form_submit_button('Run forecast', type='primary')
 
 # Keep old results hidden when the settings change.
@@ -83,10 +85,12 @@ if submitted:
         exog = future = None
         if properties:
             with st.spinner('Reading weather…'):
-                weather, _ = load_period(area_id(series), y.index[0].date(), y.index[-1].date())
+                # Weekly weather bins end on Sunday and require all 168 hours.
+                first_weather_day = (y.index[0] - pd.Timedelta(days=6)).date()
+                weather, _ = load_period(area_id(series), first_weather_day, y.index[-1].date())
                 exog = weekly_weather(weather).reindex(y.index)[properties]
             if exog.isna().any().any():
-                raise ValueError('Weather does not cover every history week. Choose dates inside 2024, prepare more weather, or remove weather inputs.')
+                raise ValueError('Weather does not cover every history week. Choose a period with complete published weather or remove weather inputs.')
             dates = pd.date_range(y.index[-1]+pd.Timedelta(days=7), periods=horizon, freq='7D')
             if scenario == 'Upload CSV':
                 if upload is None:
@@ -134,4 +138,3 @@ if saved and saved[0] == context:
         st.write('Learning rate controls each boosting step. It is not a SARIMAX parameter. Smaller values often need more trees. History controls how many recent weeks are used.')
 else:
     st.caption('Choose settings, then run the forecast. Hover, zoom, click legend labels or play the future weeks.')
-
