@@ -9,6 +9,7 @@ def open_region_picker():
     from shared_ui import choose_period, area_id, explain_errors
     from map_tools import boundaries, colour_map
     from region_tools import clicked_area
+    from weather_data import weather_years
     from weather_stats import PROPERTIES
 
     with st.container(key='region_picker'):
@@ -25,6 +26,15 @@ def open_region_picker():
             if st.button('Done', type='primary', width='stretch'):
                 st.rerun()  # Close the popup; shared choices stay saved.
         with map_panel, explain_errors():
+            region = area_id(series)
+            reservoir_first = series.index.min().date()
+            reservoir_last = series.index.max().date()
+            years = weather_years(region)
+            st.caption(f'{region} reservoir observations · {reservoir_first} to {reservoir_last}')
+            if years:
+                st.caption('Complete ERA5 years · ' + ', '.join(map(str, years)))
+            else:
+                st.caption(f'No complete ERA5 years are published for {region} in the connected Atlas database.')
             areas = boundaries(kind)
             colour_kind = {'Price area': 'EL', 'Water area': 'VASS', 'Weather property': 'Weather'}[mode]
             figure, missing = colour_map(areas, colour_kind, prop, start, end, area_id(series))

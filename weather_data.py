@@ -6,17 +6,26 @@ from atlas_data import atlas_db, DatasetNotReady
 from weather_stats import PROPERTIES
 
 
+def metadata_year(value):
+    if isinstance(value, str) and len(value) == 4 and value.isascii() and value.isdecimal():
+        return int(value)
+    if isinstance(value, (int, np.integer)) and not isinstance(value, bool):
+        return int(value)
+    return None
+
+
 @st.cache_data(ttl=300, max_entries=32, show_spinner=False)
 def weather_years(region_id):
     """Read year labels only. Do not download the weather payloads."""
     db = atlas_db()
     years = set()
+    current_year = pd.Timestamp.now(tz='Europe/Paris').year
     for name in ['era5_datasets_v4', 'era5_datasets', 'era5_history_v1']:
         query = {'region_id': region_id, 'model': 'era5', 'status': 'complete'}
         for record in db[name].find(query, {'_id': 0, 'year': 1}):
-            year = record.get('year')
-            if isinstance(year, (int, np.integer)) and not isinstance(year, bool) and 1940 <= year <= pd.Timestamp.now(tz='Europe/Paris').year:
-                years.add(int(year))
+            year = metadata_year(record.get('year'))
+            if year is not None and 1940 <= year <= current_year:
+                years.add(year)
     return sorted(years)
 
 
@@ -64,7 +73,7 @@ def load_weather(region_id, year):
         history = db[COLLECTION].find_one({'_id': key, 'status': 'complete'})
         if history is not None:
             if (history.get('model') != 'era5' or history.get('region_id') != region_id
-                    or history.get('year') != year or history.get('format') != 'npz-float64-v1'
+                    or metadata_year(history.get('year')) != year or history.get('format') != 'npz-float64-v1'
                     or history.get('sample_count', 0) < 25
                     or history.get('properties') != ['temperature_2m', 'precipitation']):
                 raise ValueError('History metadata does not match the chosen region and year.')
@@ -84,7 +93,7 @@ def load_weather(region_id, year):
                                   'Choose a prepared region/year while the app owner publishes VASS weather.')
         raise DatasetNotReady(f'Prepare {region_id}, {year} locally, then run publish_local.py --year {year}.')
     count = meta.get('sample_count', meta.get('source_sample_count', 0))
-    if count < 1 or meta.get('region_id') != region_id or meta.get('year') != year or meta.get('model') != 'era5':
+    if count < 1 or meta.get('region_id') != region_id or metadata_year(meta.get('year')) != year or meta.get('model') != 'era5':
         raise ValueError('Weather metadata does not match the selected dataset.')
     records = list(collection.find(query, {'_id': 0}).sort('time', 1))
     after = metadata.find_one({'_id': key})
