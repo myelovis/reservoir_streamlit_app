@@ -29,7 +29,7 @@ def validate_weather(frame, region_id, year):
     return frame
 
 
-@st.cache_data(ttl=600, show_spinner=False)
+@st.cache_data(ttl=600, max_entries=40, show_spinner=False)
 def load_weather(region_id, year):
     db = atlas_db()
     key = f'era5_{region_id}_{year}_n200_v4'
@@ -45,44 +45,25 @@ def load_weather(region_id, year):
             '$lt': pd.Timestamp(f'{year+1}-01-01', tz='UTC').to_pydatetime()}}
         collection, metadata = db.era5_hourly, db.era5_datasets
     if not meta or meta.get('status') != 'complete':
-                from hashlib import sha256
         from history_store import COLLECTION, decode
-
-        history = db[COLLECTION].find_one({
-            "_id": f"era5_{region_id}_{year}_subset25_v1",
-            "status": "complete",
-        })
-
+        key = f'era5_{region_id}_{year}_subset25_v1'
+        history = db[COLLECTION].find_one({'_id': key, 'status': 'complete'})
         if history is not None:
-            if (
-                history.get("region_id") != region_id
-                or history.get("year") != year
-                or history.get("model") != "era5"
-                or history.get("format") != "npz-float64-v1"
-                or history.get("sample_count", 0) < 25
-            ):
-                raise ValueError("Historical weather metadata is invalid.")
-
-            payload = bytes(history["payload"])
-            if sha256(payload).hexdigest() != history.get("payload_hash"):
-                raise ValueError("Historical weather failed its integrity check.")
-
+            if (history.get('model') != 'era5' or history.get('region_id') != region_id
+                    or history.get('year') != year or history.get('format') != 'npz-float64-v1'
+                    or history.get('sample_count', 0) < 25
+                    or history.get('properties') != ['temperature_2m', 'precipitation']):
+                raise ValueError('History metadata does not match the chosen region and year.')
+            import hashlib
+            payload = history.get('payload', b'')
+            if hashlib.sha256(payload).hexdigest() != history.get('payload_hash'):
+                raise ValueError('The compressed history did not pass its integrity check.')
             result = decode(payload, year)
-
-            if len(result) != history.get("hours"):
-                raise ValueError("Historical weather hour count is incorrect.")
-
-            count = history["sample_count"]
-            note = (
-                " · approximate boundaries"
-                if history.get("boundary_status") == "approximate"
-                else ""
-            )
-            return (
-                result,
-                f"Atlas · {region_id} · {year} · "
-                f"{count} fixed-subset samples{note}",
-            )
+            if len(result) != history.get('hours'):
+                raise ValueError('History hour count does not match its metadata.')
+            note = ' · approximate administrative-region boundaries' if history.get('boundary_status') == 'approximate' else ''
+            return result, (f'Atlas · {region_id} · {year} · {history["sample_count"]} fixed-subset samples'
+                            ' · area-weighted mean'+note)
         if region_id.startswith('VASS'):
             raise DatasetNotReady(f'No ERA5 weather is published for {region_id} in {year}. '
                                   'Its map boundary does not include weather observations. '
@@ -103,7 +84,7 @@ def load_weather(region_id, year):
     return result, f'Atlas · {region_id} · {year} · {count} samples · {method}{note}'
 
 
-@st.cache_data(ttl=600, show_spinner=False)
+@st.cache_data(ttl=600, max_entries=4, show_spinner=False)
 def load_period(region_id, start, end):
     start, end = pd.Timestamp(start), pd.Timestamp(end)
     parts, sources = [], []
