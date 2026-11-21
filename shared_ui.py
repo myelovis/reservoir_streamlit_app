@@ -10,20 +10,44 @@ def remember_dates():
     st.session_state['selected_period'] = st.session_state['_shared_period']
 
 
-def choose_period(series, panel=None, compact=False):
+def period_bounds(series, weather_dates=False):
+    """Home can include weather years before reservoir records begin."""
+    first, last = series.index.min().date(), series.index.max().date()
+    if weather_dates:
+        from weather_data import weather_years
+        years = weather_years(area_id(series))
+        if years:
+            first = min(first, pd.Timestamp(f'{years[0]}-01-01').date())
+            last = max(last, pd.Timestamp(f'{years[-1]}-12-31').date())
+    return first, last
+
+
+def check_reservoir_period(series, dates):
+    selected = series.loc[str(dates[0]):str(dates[1])]
+    first, last = series.index.min().date(), series.index.max().date()
+    if selected.empty:
+        st.info(f'No reservoir observations in this period. {area_id(series)} reservoir data covers '
+                f'{first} to {last}. Weather outliers can still use earlier published weather.')
+        st.stop()
+    if dates[0] < first or dates[1] > last:
+        st.caption(f'Reservoir calculations use the available observations: '
+                   f'{selected.index.min().date()} to {selected.index.max().date()}.')
+
+
+def choose_period(series, panel=None, compact=False, weather_dates=False):
     from popup_ui import controls_panel, in_popup, uses_home_selection
     if uses_home_selection():
         dates = st.session_state.get('selected_period', ())
         if len(dates) != 2 or dates[0] > dates[1]:
             st.info('Choose a start and end date on Home.')
             st.stop()
-        if series.loc[str(dates[0]):str(dates[1])].empty:
-            st.info('No reservoir observations in this period. Change the dates on Home.')
-            st.stop()
+        if not weather_dates:
+            check_reservoir_period(series, dates)
         return tuple(dates)
     panel = controls_panel() if panel is None else panel
     compact = compact or in_popup()
-    first, last = series.index.min().date(), series.index.max().date()
+    with explain_errors():
+        first, last = period_bounds(series, weather_dates)
     default = (max(first, pd.Timestamp('2024-01-01').date()), min(last, pd.Timestamp('2024-12-31').date()))
     if default[0] > default[1]:
         default = (first, last)

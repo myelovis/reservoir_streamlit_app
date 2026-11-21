@@ -15,7 +15,7 @@ def open_region_picker():
         controls, map_panel = st.columns([.15, .85], gap='small')
         with controls:
             series = choose_area(default_kind='EL', default_number=3, panel=st, compact=True)
-            start, end = choose_period(series, panel=st, compact=True)
+            start, end = choose_period(series, panel=st, compact=True, weather_dates=True)
             kind = str(series.area_type.iloc[0])
             mode = st.selectbox('Colour by', ['Price area', 'Water area', 'Weather property'])
             prop = 'temperature_2m'

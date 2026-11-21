@@ -2,16 +2,21 @@ from popup_ui import in_popup, page_title, settings
 import pandas as pd
 import streamlit as st
 from reservoir_data import choose_area
-from weather_data import load_weather
+from weather_data import load_weather, weather_years
 from weather_stats import PROPERTIES, spc, lof
 from plot_tools import weather_plot
 from shared_ui import choose_period, area_id, explain_errors
 
 page_title('Weather outliers')
 series = choose_area(default_kind='EL',default_number=3)
-start, end = choose_period(series)
-year = end.year
+start, end = choose_period(series, weather_dates=True)
 with explain_errors():
+    years = [year for year in weather_years(area_id(series)) if start.year <= year <= end.year]
+    if not years:
+        st.info('No complete weather year is published for this region in the selected period. Change the dates on Home.')
+        st.stop()
+    year = st.selectbox('Analysis year', years, index=len(years)-1,
+                        help='Analyse one year at a time. SPC limits use that complete year.')
     with st.spinner('Reading weather from Atlas…'):
         weather, source = load_weather(area_id(series),year)
     st.caption(source)

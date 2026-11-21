@@ -6,6 +6,20 @@ from atlas_data import atlas_db, DatasetNotReady
 from weather_stats import PROPERTIES
 
 
+@st.cache_data(ttl=300, max_entries=32, show_spinner=False)
+def weather_years(region_id):
+    """Read year labels only. Do not download the weather payloads."""
+    db = atlas_db()
+    years = set()
+    for name in ['era5_datasets_v4', 'era5_datasets', 'era5_history_v1']:
+        query = {'region_id': region_id, 'model': 'era5', 'status': 'complete'}
+        for record in db[name].find(query, {'_id': 0, 'year': 1}):
+            year = record.get('year')
+            if isinstance(year, (int, np.integer)) and not isinstance(year, bool) and 1940 <= year <= pd.Timestamp.now(tz='Europe/Paris').year:
+                years.add(int(year))
+    return sorted(years)
+
+
 def validate_weather(frame, region_id, year):
     frame = frame.copy()
     if not {'time', 'temperature_2m', 'precipitation'}.issubset(frame.columns):
