@@ -11,7 +11,12 @@ mpl.rcParams.update({
     'text.color': '#153f31', 'grid.color': '#c8dccd',
 })
 
-st.set_page_config(page_title='Chronological Insights · Norway',page_icon='🌿',layout='wide')
+st.set_page_config(
+    page_title='Chronological Insights · Norway',
+    page_icon='🌿',
+    layout='wide',
+    initial_sidebar_state='auto',
+)
 style = (Path(__file__).parent / 'style.css').read_text(encoding='utf-8')
 st.html(f'<style>{style}</style>')
 
@@ -29,7 +34,7 @@ def home():
                 leaf = leaf.with_suffix('.svg')
             if leaf.exists():
                 st.image(str(leaf), width=58)
-    st.write('Explore Norway’s reservoirs, weather and electricity transfers.')
+    st.write('Understand the past. Explore what comes next.')
     st.caption('[Magasinstatistikk](https://biapi.nve.no/magasinstatistikk/swagger/index.html) · '
                '[Open-Meteo / ERA5](https://open-meteo.com/en/docs/historical-weather-api) · '
                '[ENTSO-E](https://transparencyplatform.zendesk.com/hc/en-us/articles/15692855254548-Sitemap-for-Restful-API-Integration)')
@@ -52,9 +57,9 @@ def home():
         for column, (title, links) in zip(columns, groups):
             with column.container(border=True, key=f'home_{title.lower()}'):
                 st.subheader(title)
-                st.write({'Explore':'Reservoir levels and power flows.',
-                          'Diagnose':'Weather patterns and relationships.',
-                          'Forecast':'Future reservoir levels.'}[title])
+                st.write({'Explore':'Reservoirs, weather and energy over time.',
+                          'Diagnose':'Patterns, unusual values and relationships.',
+                          'Forecast':'Future filling with SARIMAX, Ridge or Boosting.'}[title])
                 for path, label in links:
                     if st.button(label, icon=':material/arrow_outward:', key=f'open_{label}', type='tertiary', width='stretch'):
                         st.session_state['analysis_popup_label'] = label
