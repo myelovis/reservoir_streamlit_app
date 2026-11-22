@@ -26,16 +26,23 @@ def correlations(values, lags, difference):
 page_title('ACF and PACF')
 series = choose_area(default_kind='EL', default_number=3)
 start, end = choose_period(series)
+values = series.loc[str(start):str(end), 'fill_ratio'] * 100
+if len(values) < 12:
+    st.info('Choose at least 12 consecutive weekly observations.')
+    st.stop()
+# Reserve one observation for differencing and respect PACF’s lag limit.
+max_lags = min(52, (len(values) - 1) // 2 - 1)
 with settings('ACF / PACF settings'):
     with st.form('autocorrelation_settings'):
-        lags = st.slider('Lags (weeks)', 1, 52, 12)
-        difference = st.checkbox('Use weekly changes', value=True)
+        lags = st.slider('Lags (weeks)', 1, max_lags, min(12, max_lags),
+                         help='Number of past weeks to compare. Longer date ranges allow more lags.')
+        difference = st.checkbox('Use weekly changes', value=True,
+                                 help='Analyze week-to-week changes to reduce the influence of slow trends.')
         run = st.form_submit_button('Run ACF / PACF')
 
 context = (area_id(series), start, end, lags, difference)
 with explain_errors():
     if run:
-        values = series.loc[str(start):str(end), 'fill_ratio'] * 100
         with st.spinner('Checking weekly relationships…'):
             st.session_state['correlation_plots'] = (context, correlations(values, lags, difference))
     saved = st.session_state.get('correlation_plots')
@@ -52,6 +59,6 @@ with explain_errors():
                             fill='tonexty', fillcolor='rgba(40,116,81,0.15)', name='Approx. 95% band')
             fig.add_bar(x=x, y=values[1:], marker_color='#287451', name=name)
             fig.update_layout(title=f'{area_id(series)} · {name}', xaxis_title='Lag (weeks)',
-                              yaxis_title='Correlation', template='plotly_white', height=300 if in_popup() else 380)
+                              yaxis_title='Correlation', template='plotly_white', height=430 if in_popup() else 380)
             st.plotly_chart(fig, width='stretch')
     st.caption('ACF includes indirect relationships; PACF adjusts for shorter lags. These bands are approximate. Correlation does not establish causation or select a model by itself.')

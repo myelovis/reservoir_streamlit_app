@@ -55,11 +55,14 @@ with stl_tab:
     with settings('STL settings'):
         with st.form('stl_settings'):
             left, middle, right = st.columns(3)
-            seasonal = left.number_input("Seasonal smoother (odd)", min_value=7, max_value=101, value=13, step=2)
+            seasonal = left.number_input("Seasonal smoother (odd)", min_value=7, max_value=101, value=13, step=2,
+                                         help="Larger odd values make the seasonal pattern change more slowly.")
             trend = middle.number_input("Trend smoother (weeks, odd)", min_value=period + 1, max_value=521,
                                         value=89 if period == 52 else 53, step=2,
-                                        key=f"stl_trend_{period}")
-            robust = right.checkbox("Robust fitting", value=True)
+                                        key=f"stl_trend_{period}",
+                                        help="Larger odd windows show a smoother long-term trend. The window must exceed the seasonal cycle.")
+            robust = right.checkbox("Robust fitting", value=True,
+                                    help="Reduces the influence of unusual weeks on the fit.")
             run_stl = st.form_submit_button('Run STL', disabled=len(filling) < STL_MIN_WEEKS)
     context = (label, tuple(selected), int(seasonal), int(trend), robust)
     if run_stl:
@@ -79,7 +82,8 @@ with stl_tab:
             figure = make_subplots(rows=4, cols=1, shared_xaxes=True, vertical_spacing=.06)
             for row, name in enumerate(components, start=1):
                 figure.add_trace(go.Scatter(x=components.index,y=components[name],name=name,line_color='#205b3d'),row=row,col=1)
-            figure.update_layout(height=290,margin=dict(t=15,b=20),showlegend=True)
+            figure.update_layout(height=570, margin=dict(l=45, r=18, t=22, b=42),
+                                 showlegend=True, legend=dict(orientation="h", y=1.08))
             st.plotly_chart(figure,width='stretch')
         else:
             st.image(image)
@@ -92,8 +96,10 @@ with spectral_tab:
         with st.form('spectrogram_settings'):
             left, right = st.columns(2)
             default_window = min(104, max(4, 4 * len(filling) // 5))
-            window = int(left.number_input('Window length (weeks)', 4, 520, default_window))
-            overlap = int(right.number_input('Window overlap (weeks)', 0, 519, 3 * default_window // 4))
+            window = int(left.number_input('Window length (weeks)', 4, 520, default_window,
+                                           help='Longer windows reveal slower cycles. Shorter windows locate changes more precisely.'))
+            overlap = int(right.number_input('Window overlap (weeks)', 0, 519, 3 * default_window // 4,
+                                             help='Weeks shared by neighbouring windows. Use less than the window length.'))
             run_spectrum = st.form_submit_button('Run spectrogram')
     context = (label, tuple(selected), window, overlap)
     if run_spectrum:
@@ -113,7 +119,7 @@ with spectral_tab:
             power = spectrum.to_numpy().T
             db = 10*np.log10(np.maximum(power/max(float(power.max()),np.finfo(float).tiny),1e-12))
             figure = go.Figure(go.Heatmap(x=spectrum.index,y=spectrum.columns,z=db,colorscale='Greens',zmin=-60,zmax=0))
-            figure.update_layout(height=290,margin=dict(t=10,b=35),yaxis_title='Cycles / year',yaxis_range=[0,6])
+            figure.update_layout(height=440, margin=dict(t=25,b=55),yaxis_title='Cycles / year',yaxis_range=[0,6])
             st.plotly_chart(figure,width='stretch')
         else:
             st.image(image)

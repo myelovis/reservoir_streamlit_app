@@ -14,9 +14,11 @@ if uses_home_selection():
 months = series.index.to_period("M").unique().sort_values().astype(str).tolist()
 with settings('Plot settings'):
     if not uses_home_selection():
-        first, last = st.select_slider("Months", options=months, value=(months[0], months[0]))
+        first, last = st.select_slider("Months", options=months, value=(months[-min(12, len(months))], months[-1]),
+                                        help="Choose which months to plot. The default shows up to the latest twelve months.")
     column = st.selectbox("Measure", [*METRICS, "All measures"],
-                          format_func=lambda name: METRICS.get(name, name))
+                          format_func=lambda name: METRICS.get(name, name),
+                          help="Choose a measurement in its original units, or use All measures to compare normalized trends.")
 periods = series.index.to_period("M")
 selected = series if uses_home_selection() else series.loc[(periods >= pd.Period(first)) & (periods <= pd.Period(last))]
 if selected.empty:
@@ -26,4 +28,5 @@ fig = reservoir_plot(selected, column)
 st.pyplot(fig)
 plt.close(fig)
 st.caption("All measures uses min–max scaling over the selected interval; constant measures appear at zero.")
-st.caption("The slider filters the NVE observations fetched from the NVE API.")
+if not uses_home_selection():
+    st.caption("The month slider filters the NVE observations displayed.")

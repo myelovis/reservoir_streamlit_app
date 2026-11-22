@@ -25,21 +25,27 @@ with explain_errors():
         with tab:
             with settings(f'{method} settings'):
                 with st.form(f'analysis_{method}'):
-                    prop = st.selectbox('Weather property',list(weather.columns),key=f'property_{method}',format_func=lambda x:PROPERTIES[x][0])
+                    prop = st.selectbox('Weather property',list(weather.columns),key=f'property_{method}',format_func=lambda x:PROPERTIES[x][0],
+                                        help="Choose hourly temperature or precipitation from Open-Meteo.")
                     name, unit, _ = PROPERTIES[prop]
                     left, right = st.columns(2)
                     if method=='SPC':
-                        cutoff = left.number_input('DCT cutoff (days)',1.,365.,30.,key='cutoff')
-                        multiplier = right.number_input('Robust standard deviations',.5,10.,3.,step=.5)
+                        cutoff = left.number_input('DCT cutoff (days)',1.,365.,30., key='cutoff',
+                                                   help='Controls which slow variations are removed before setting the limits.')
+                        multiplier = right.number_input('Robust standard deviations',.5,10.,3., step=.5,
+                                                        help='Higher values widen the limits and usually flag fewer hours.')
                         calculation = st.cache_data(ttl=3600,max_entries=16,show_spinner=False)(spc)
                         st.caption('Filtered residuals are used for limits and flags; they are not plotted. The default property is temperature.')
                     else:
-                        share = left.slider('Target anomalies (%)',.1,10.,1.,step=.1)/100
-                        neighbours = right.number_input('Neighbours',2,min(200,len(weather)-1),20)
+                        share = left.slider('Target anomalies (%)',.1,10.,1., step=.1,
+                                            help='Approximate share of hours to flag over the full analysis year.')/100
+                        neighbours = right.number_input('Neighbours',2,min(200,len(weather)-1),20,
+                                                        help='Number of nearby values used to judge whether a measurement is unusual.')
                         calculation = st.cache_data(ttl=3600,max_entries=16,show_spinner=False)(lof)
                         st.caption('LOF compares values with nearby values. A flag is not proof of a data error.')
                     run = st.form_submit_button(f'Run {method}')
-            context = (area_id(series), year, prop)
+            settings_values = (cutoff, multiplier) if method == 'SPC' else (share, neighbours)
+            context = (area_id(series), year, prop, settings_values)
             key = f'weather_result_{method}'
             if run:
                 with st.spinner('Finding unusual values…'):
@@ -60,7 +66,7 @@ with explain_errors():
                 b.metric('Flagged share in view',f'{visible.flag.mean()*100:.2f}%' if len(visible) else 'No overlap')
             figure = weather_plot(visible,f'{area_id(series)} · {name} · {method}',unit)
             if in_popup():
-                figure.update_layout(height=280, margin=dict(t=40,b=45))
+                figure.update_layout(height=445, margin=dict(t=55,b=55))
             st.plotly_chart(figure,width='stretch')
             with st.expander('Flagged hours'):
                 st.dataframe(visible.loc[visible.flag],height=220,width='stretch')

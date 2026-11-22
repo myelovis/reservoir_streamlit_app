@@ -20,7 +20,8 @@ def fit_forecast(y, model, parameters, horizon, holdout, exog, future, scenario,
 page_title('Filling forecast')
 series = choose_area(default_kind='EL', default_number=3)
 start, end = choose_period(series)
-model = st.radio('Model', list(MODELS), horizontal=True)
+model = st.radio('Model', list(MODELS), horizontal=True,
+                 help='SARIMAX models time dependence. Ridge and Boosting predict from earlier weeks and selected weather.')
 with explain_errors():
     observed = (series.loc[str(start):str(end), 'fill_ratio']*100).sort_index()
     observed.index = pd.to_datetime(observed.index, utc=True)
@@ -31,43 +32,61 @@ with explain_errors():
 with settings('Forecast settings'):
     with st.form('forecast_controls'):
         a, b, c = st.columns(3)
-        history = a.number_input('History (weeks)', 37, min(520, len(observed)), min(208, len(observed)))
-        holdout = b.number_input('Holdout (weeks)', 1, min(52, int(history)-24), min(13, int(history)-24))
-        horizon = c.number_input('Future (weeks)', 1, 52, 13)
+        history = a.number_input('History (weeks)', 37, min(520, len(observed)), min(208, len(observed)),
+                                 help='Use up to four years by default, within the selected dates.')
+        holdout = b.number_input('Holdout (weeks)', 1, min(52, int(history)-24), min(13, int(history)-24),
+                                  help='Set aside recent weeks to test accuracy before forecasting.')
+        horizon = c.number_input('Future (weeks)', 1, 52, 13,
+                                  help='Number of weeks to predict after the last observation.')
         properties = st.multiselect('Weather inputs', list(PROPERTIES)[:2],
-            format_func=lambda name: PROPERTIES[name][0], key='forecast_weather')
+            format_func=lambda name: PROPERTIES[name][0], key='forecast_weather',
+            help='Add weekly temperature or precipitation. Selected properties need complete ERA5 coverage.')
         tune = False
         if model == 'SARIMAX':
             a, b, c = st.columns(3)
-            order = (a.number_input('p · past values', 0, 3, 1),
-                     b.number_input('d · differences', 0, 2, 1),
-                     c.number_input('q · past errors', 0, 3, 0))
+            order = (a.number_input('p · past values', 0, 3, 1, help='How many earlier filling values the model uses.'),
+                     b.number_input('d · differences', 0, 2, 1, help='How many times the series is differenced to reduce trends.'),
+                     c.number_input('q · past errors', 0, 3, 0, help='How many earlier forecast errors the model uses.'))
             st.caption('p: past filling values. d: differencing steps. q: past forecast errors.')
             with st.expander('Seasonal and fit settings'):
                 a, b, c, d = st.columns(4)
-                seasonal = (a.number_input('P', 0, 2, 0), b.number_input('D', 0, 1, 0),
-                            c.number_input('Q', 0, 2, 0), d.number_input('Season length', 2, 104, 52))
-                trend = st.selectbox('Trend', ['n', 'c', 't', 'ct'])
-                confidence = st.slider('Conditional interval (%)', 80, 99, 95)/100
-                stationary = st.checkbox('Keep stationary AR terms', True)
-                invertible = st.checkbox('Keep invertible MA terms', True)
-                maxiter = st.slider('Maximum fit steps', 20, 200, 100)
+                seasonal = (a.number_input('P', 0, 2, 0, help='Number of past seasonal cycles used as predictors.'), b.number_input('D', 0, 1, 0, help='Apply a difference across one seasonal cycle.'),
+                            c.number_input('Q', 0, 2, 0, help='Number of past seasonal forecast errors used.'), d.number_input('Season length', 2, 104, 52,
+                                                                help='Weeks per seasonal cycle, used when P, D, or Q is nonzero.'))
+                trend = st.selectbox('Trend', ['n', 'c', 't', 'ct'],
+                                     help='n: none. c: constant. t: linear trend. ct: constant and trend.')
+                confidence = st.slider('Conditional interval (%)', 80, 99, 95,
+                                       help='Controls interval width under the chosen model and future weather scenario.')/100
+                stationary = st.checkbox('Keep stationary AR terms', True,
+                                         help='Constrains the autoregressive part to be stable.')
+                invertible = st.checkbox('Keep invertible MA terms', True,
+                                         help='Constrains the moving-average part to a stable representation.')
+                maxiter = st.slider('Maximum fit steps', 20, 200, 100,
+                                   help='Maximum number of optimizer iterations.')
             parameters = dict(order=order, seasonal=seasonal, trend=trend, confidence=confidence,
                               stationary=stationary, invertible=invertible, maxiter=maxiter)
         else:
             a, b = st.columns(2)
-            parameters = dict(lags=a.number_input('Past filling weeks', 1, 104, 8))
+            parameters = dict(lags=a.number_input('Past filling weeks', 1, 104, 8,
+                                 help='Number of previous filling values passed to the model.'))
             if model == 'Boosting':
-                parameters['learning_rate'] = b.number_input('Learning rate', .001, 1., .03, .01, format='%.3f')
+                parameters['learning_rate'] = b.number_input('Learning rate', .001, 1., .03, .01, format='%.3f',
+                                                             help='How much each new tree changes the prediction.')
                 with st.expander('Boosting settings'):
-                    parameters['trees'] = st.slider('Trees', 25, 200, 100, 25)
-                    parameters['depth'] = st.slider('Tree depth', 1, 4, 2)
-                    tune = st.checkbox('Tune history and learning rate (up to 6 trials)')
+                    parameters['trees'] = st.slider('Trees', 25, 200, 100, 25,
+                                                    help='Number of trees fitted in sequence.')
+                    parameters['depth'] = st.slider('Tree depth', 1, 4, 2,
+                                                    help='Higher depth lets each tree learn more complex patterns.')
+                    tune = st.checkbox('Tune history and learning rate (up to 6 trials)',
+                                       help='Uses an earlier validation period to compare settings.')
                     st.caption('Tuning uses an earlier validation period. The final holdout stays unseen.')
             else:
-                parameters['alpha'] = b.number_input('Ridge penalty', .01, 100., 1.)
-        scenario = st.selectbox('Weather assumption', ['Recent mean', 'Training seasonal mean', 'Upload CSV'])
-        upload = st.file_uploader('Optional future weather CSV: date and selected property columns', type='csv')
+                parameters['alpha'] = b.number_input('Ridge penalty', .01, 100., 1.,
+                                                     help='Higher values shrink model coefficients more strongly.')
+        scenario = st.selectbox('Weather assumption', ['Recent mean', 'Training seasonal mean', 'Upload CSV'],
+                                help='Use the recent average, a week-of-year average from training, or weather from your CSV.')
+        upload = st.file_uploader('Optional future weather CSV: date and selected property columns', type='csv',
+                                  help='Required for Upload CSV. Supply one dated row per forecast week.')
         st.caption('Open-Meteo ERA5 must cover every training week. Future weather uses the selected scenario.')
         submitted = st.form_submit_button('Run forecast', type='primary')
 

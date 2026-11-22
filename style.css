@@ -20,9 +20,20 @@ h3 { font-size: 1.5rem !important; letter-spacing: -0.025em; }
     justify-content: flex-start; text-align: left;
 }
 [data-testid="stDialog"] [role="dialog"]:has(.st-key-analysis_popup) {
-    width: calc(100vw - 32px); max-width: 1280px; max-height: calc(100dvh - 64px);
+    width: min(1320px, calc(100vw - 24px));
+    max-height: calc(100dvh - 24px);
+    overflow: auto;
 }
-.st-key-analysis_popup, .st-key-analysis_popup [data-testid="stVerticalBlock"] { gap: 7px; }
+.st-key-analysis_popup, .st-key-analysis_popup [data-testid="stVerticalBlock"] { gap: .65rem; }
+.st-key-analysis_popup [data-testid="stColumn"] { min-width: 0; }
+.st-key-analysis_popup [data-testid="stPlotlyChart"] { width: 100%; }
+.st-key-analysis_popup [data-testid="stTab"] { white-space: normal; }
+@media (max-width: 760px) {
+    [data-testid="stDialog"] [role="dialog"]:has(.st-key-analysis_popup) {
+        width: calc(100vw - 12px);
+        max-height: calc(100dvh - 12px);
+    }
+}
 .st-key-analysis_popup h3 { font-size: 1.25rem !important; }
 .st-key-home_explore [data-testid="stPageLink"],
 .st-key-home_diagnose [data-testid="stPageLink"],

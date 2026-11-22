@@ -44,9 +44,9 @@ def forecast_animation(history, forecast, title, holdout=None):
                               traces=list(range(position, position+len(data)))))
     fig.frames = frames
     fig.update_layout(title=title, template='plotly_white', hovermode='x unified',
-        xaxis_title='Week', yaxis_title='Filling (%)', height=400,
-        margin=dict(l=35, r=15, t=65, b=65),
-        legend=dict(orientation='h', y=1.16, x=0),
+        xaxis_title='Week', yaxis_title='Filling (%)', height=500,
+        margin=dict(l=50, r=20, t=85, b=110),
+        legend=dict(orientation='h', y=1.10, x=0),
         xaxis_range=[history.index[0], forecast.index[-1]],
         updatemenus=[dict(type='buttons', direction='left', x=0, y=-.25,
             buttons=[dict(label='Play', method='animate', args=[None,

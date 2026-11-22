@@ -11,9 +11,10 @@ from popup_ui import in_popup, page_title
 page_title('Norway–Denmark electricity transfers')
 with (st.popover('Connection and year') if in_popup() else st.container()):
     left, middle, right = (st.container(), st.container(), st.container()) if in_popup() else st.columns([2,1,1])
-    left.selectbox('Connection', ['NO2-DK1'])
+    left.selectbox('Connection', ['NO2-DK1'], help='Physical flow between southern Norway and western Denmark.')
     current = pd.Timestamp.now(tz='Europe/Oslo').year
-    year = int(middle.selectbox('Year', [current, current-1, current-2], index=1))
+    year = int(middle.selectbox('Year', [current, current-1, current-2], index=1,
+                                help='The previous complete calendar year is selected by default.'))
     if right.button('Refresh data'):
         load_direction.clear(year, "in")
         load_direction.clear(year, "out")
@@ -48,7 +49,7 @@ with energy:
                     values=totals.energy_mwh,hole=.65,sort=False,textinfo='percent',
                     marker=dict(colors=[COLORS[d] for d in totals.index],pattern=dict(shape=['' if d=='in' else '/' for d in totals.index])),
                     insidetextfont=dict(color=['white' if d=='in' else '#083d25' for d in totals.index])))
-                fig.update_layout(height=270,margin=dict(t=10,b=40,l=5,r=5),legend=dict(orientation='h',y=-.1),
+                fig.update_layout(height=390,margin=dict(t=20,b=50,l=12,r=12),legend=dict(orientation='h',y=-.1),
                     annotations=[dict(text=f'{totals.energy_mwh.sum():,.0f}<br>MWh',showarrow=False)])
                 st.plotly_chart(fig,width='stretch')
             else:
@@ -61,13 +62,14 @@ with energy:
 with flow:
     summary, filters = st.columns([6,1])
     with filters.popover('Months', icon=':material/filter_alt:'):
-        months = st.multiselect('Choose months', list(range(1,13)), default=[1],
+        months = st.multiselect('Choose months', list(range(1,13)), default=[1, 2, 3],
+                               help='Compare daily and seasonal flow changes. Select more months to widen the chart.',
                                format_func=lambda m:calendar.month_abbr[m])
     summary.caption('Hourly power · '+(', '.join(calendar.month_abbr[m] for m in sorted(months)) or 'No months selected'))
     if months and annual.time.dt.tz_convert('Europe/Oslo').dt.month.isin(months).any():
         # Keep this call compatible with the earlier two-argument helper.
         fig = power_lines(annual, months)
-        fig.set_size_inches(12, 3.3 if in_popup() else 4.5)
+        fig.set_size_inches(12, 4.5)
         fig.tight_layout()
         st.pyplot(fig)
         plt.close(fig)
