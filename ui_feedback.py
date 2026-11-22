@@ -18,8 +18,10 @@ def fetch_progress(label):
             </div>
             <div role="progressbar" aria-label="{description}"
                  aria-valuenow="{percent}" aria-valuemin="0" aria-valuemax="100"
-                 style="height:8px;margin-top:6px;background:#d9eadc;border-radius:8px;overflow:hidden">
-                <div style="width:{percent}%;height:100%;background:#153f31"></div>
+                 style="height:10px;margin-top:6px;background:#f3f8f3;border:1px solid #c7dccb;
+                        border-radius:8px;overflow:hidden">
+                <div style="width:{percent}%;height:100%;border-radius:inherit;
+                            background:repeating-linear-gradient(135deg,#54866b 0 2px,#e5f1e7 2px 12px)"></div>
             </div>
         """)
 
