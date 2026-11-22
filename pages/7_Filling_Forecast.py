@@ -1,3 +1,4 @@
+from ui_feedback import show_chart
 """Choose settings, test on held-out weeks, then forecast."""
 import pandas as pd
 import streamlit as st
@@ -82,9 +83,10 @@ if submitted:
         y = observed.tail(int(history))
         exog = future = None
         if properties:
-            with st.spinner('Reading weather…'):
-                weather, _ = load_period(area_id(series), y.index[0].date() - pd.Timedelta(days=6), y.index[-1].date())
-                exog = weekly_weather(weather).reindex(y.index)[properties]
+            weather, _ = load_period(
+                area_id(series), y.index[0].date() - pd.Timedelta(days=6), y.index[-1].date()
+            )
+            exog = weekly_weather(weather).reindex(y.index)[properties]
             if exog.isna().any().any():
                 raise ValueError('Weather does not cover every history week. Choose dates with complete ERA5 weeks or remove weather inputs.')
             dates = pd.date_range(y.index[-1]+pd.Timedelta(days=7), periods=horizon, freq='7D')
@@ -111,7 +113,7 @@ if saved and saved[0] == context:
     with chart:
         fig = forecast_animation(result['observed'], result['future'],
             f'{area_id(series)} · {model}', result['holdout'])
-        st.plotly_chart(fig, width='stretch', config={'displaylogo': False})
+        show_chart(fig)
         a, b, c = st.columns(3)
         for column, (name, value) in zip([a, b, c], result['scores'].items()):
             column.metric(name, f'{value:.2f}')
@@ -133,4 +135,4 @@ if saved and saved[0] == context:
         st.caption('For uploaded future weather, holdout testing uses the training seasonal mean.')
         st.write('Learning rate controls each boosting step. It is not a SARIMAX parameter. Smaller values often need more trees. History controls how many recent weeks are used.')
 else:
-    st.caption('Choose settings, then run the forecast. Hover, zoom, click legend labels or play the future weeks.')
+    st.caption('Choose settings, then run the forecast. Use Play or the week slider to see the forecast. Scores and values shows the numbers.')

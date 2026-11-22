@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import streamlit as st
 from api_data import ApiDataError
+from ui_feedback import fetch_progress, show_chart
 from transfer_data import load_transfers
 from transfer_plots import annual_totals, energy_donut, power_lines, COLORS
 from popup_ui import in_popup, page_title
@@ -16,7 +17,8 @@ with (st.popover('Connection and year') if in_popup() else st.container()):
     if right.button('Refresh data'):
         load_transfers.clear(year)
 try:
-    df = load_transfers(year)
+    with fetch_progress("ENTSO-E transfers") as update:
+        df = load_transfers(year, _update=update)
 except (ApiDataError, ValueError) as error:
     st.error(str(error))
     st.stop()
@@ -32,7 +34,11 @@ energy, flow, records = st.tabs(['1 · Energy', '2 · Power flow', '3 · Records
 with energy:
     table, chart = st.columns([1, 1])
     with table:
-        st.dataframe(totals.rename(index={'in':'Into Norway', 'out':'Out of Norway'}), width='stretch')
+        st.table(totals.rename(
+            index={'in': 'Into Norway', 'out': 'Out of Norway'},
+            columns={'energy_mwh': 'Energy (MWh)', 'reported_hours': 'Reported hours',
+                     'coverage_pct': 'Coverage (%)'},
+        ).round(2))
         if len(totals) < 2 or (totals.coverage_pct < 99.999).any():
             st.warning('Incomplete annual coverage. Totals include reported intervals only.')
         if (totals.coverage_pct > 100.001).any():
@@ -47,7 +53,7 @@ with energy:
                     insidetextfont=dict(color=['white' if d=='in' else '#083d25' for d in totals.index])))
                 fig.update_layout(height=270,margin=dict(t=10,b=40,l=5,r=5),legend=dict(orientation='h',y=-.1),
                     annotations=[dict(text=f'{totals.energy_mwh.sum():,.0f}<br>MWh',showarrow=False)])
-                st.plotly_chart(fig,width='stretch')
+                show_chart(fig)
             else:
                 fig = energy_donut(totals, year)
                 st.pyplot(fig)

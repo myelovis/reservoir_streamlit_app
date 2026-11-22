@@ -4,6 +4,12 @@ import matplotlib as mpl
 from cycler import cycler
 
 mpl.rcParams['axes.prop_cycle'] = cycler(color=['#205b3d','#57966b','#89af91','#103e2a','#b6d1ba'])
+mpl.rcParams.update({
+    'figure.facecolor': '#f7faf7', 'axes.facecolor': '#f7faf7',
+    'axes.edgecolor': '#688b74', 'axes.labelcolor': '#153f31',
+    'xtick.color': '#153f31', 'ytick.color': '#153f31',
+    'text.color': '#153f31', 'grid.color': '#c8dccd',
+})
 
 st.set_page_config(page_title='Chronological Insights · Norway',page_icon='🌿',layout='wide')
 style = (Path(__file__).parent / 'style.css').read_text(encoding='utf-8')
