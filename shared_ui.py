@@ -2,8 +2,7 @@
 from contextlib import contextmanager
 import pandas as pd
 import streamlit as st
-from pymongo.errors import PyMongoError
-from atlas_data import AtlasSetupError, DatasetNotReady
+from api_data import ApiDataError
 
 
 def remember_dates():
@@ -14,11 +13,9 @@ def period_bounds(series, weather_dates=False):
     """Home can include weather years before reservoir records begin."""
     first, last = series.index.min().date(), series.index.max().date()
     if weather_dates:
-        from weather_data import weather_years
-        years = weather_years(area_id(series))
-        if years:
-            first = min(first, pd.Timestamp(f'{years[0]}-01-01').date())
-            last = max(last, pd.Timestamp(f'{years[-1]}-12-31').date())
+        from weather_data import FIRST_DAY, archive_end
+        first = min(first, FIRST_DAY)
+        last = max(last, archive_end())
     return first, last
 
 
@@ -27,7 +24,7 @@ def check_reservoir_period(series, dates):
     first, last = series.index.min().date(), series.index.max().date()
     if selected.empty:
         st.info(f'No reservoir observations in this period. {area_id(series)} reservoir data covers '
-                f'{first} to {last}. Weather outliers can still use earlier published weather.')
+                f'{first} to {last}. Weather outliers can still use earlier archive weather.')
         st.stop()
     if dates[0] < first or dates[1] > last:
         st.caption(f'Reservoir calculations use the available observations: '
@@ -88,11 +85,8 @@ def area_id(series):
 def explain_errors():
     try:
         yield
-    except (AtlasSetupError, DatasetNotReady) as error:
-        st.info(str(error))
-        st.stop()
-    except PyMongoError:
-        st.error('Atlas could not be reached. Check your private MONGO_URI and Atlas Network Access.')
+    except ApiDataError as error:
+        st.error(str(error))
         st.stop()
     except (ValueError, KeyError, TypeError, FileNotFoundError) as error:
         st.warning(str(error))

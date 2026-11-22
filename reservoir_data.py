@@ -1,10 +1,10 @@
-"""Shared Atlas reservoir loader and small plotting helpers."""
+"""Shared NVE reservoir loader and small plotting helpers."""
 import pandas as pd
 import numpy as np
 import streamlit as st
 import matplotlib.pyplot as plt
-from pymongo.errors import PyMongoError
-from atlas_data import atlas_db, AtlasSetupError, DatasetNotReady
+from api_data import ApiDataError, get_json
+from ui_feedback import fetch_progress
 
 METRICS = {
     "fill_ratio": "Filling (fraction)",
@@ -23,34 +23,29 @@ def prepare_reservoirs(records):
         "endring_fyllingsgrad":"fill_ratio_change"}
     df = pd.DataFrame(records).rename(columns=names)
     if not {"date_id", "area_type", "area_number", *METRICS}.issubset(df.columns):
-        raise ValueError("Atlas reservoir records are missing required NVE fields.")
+        raise ValueError("NVE reservoir records are missing required NVE fields.")
     df["date_id"] = pd.to_datetime(df["date_id"])
     if df.date_id.isna().any():
-        raise ValueError("Atlas reservoir observations have missing dates.")
+        raise ValueError("NVE reservoir observations have missing dates.")
     for name in METRICS:
         df[name] = pd.to_numeric(df[name], errors="raise")
     if not np.isfinite(df[list(METRICS)].to_numpy()).all():
-        raise ValueError("Atlas reservoir measurements must be finite.")
+        raise ValueError("NVE reservoir measurements must be finite.")
     if df.duplicated(["area_type", "area_number", "date_id"]).any():
-        raise ValueError("Duplicate reservoir observations in Atlas.")
+        raise ValueError("Duplicate reservoir observations in the NVE response.")
     if "next_publication_date" in df:
         df["next_publication_date"] = pd.to_datetime(df["next_publication_date"], format="ISO8601", errors="coerce")
     df = df.drop(columns=["publication_id"], errors="ignore")
     return df.sort_values(["area_type", "area_number", "date_id"])
 
 
-@st.cache_data(ttl=300, show_spinner="Reading reservoir observations from Atlas…")
+@st.cache_data(ttl=300, show_spinner=False)
 def load_reservoirs():
-    db = atlas_db()
-    meta = db["reservoir_datasets"].find_one({"_id": "current"})
-    if not meta or meta.get("status") != "complete" or not meta.get("publication_id"):
-        raise DatasetNotReady("Publish NVE reservoir data to Atlas once: python publish_atlas.py --reservoirs")
-    records = list(db["reservoir_weekly"].find({"publication_id": meta["publication_id"]}, {"_id": 0}))
-    after = db["reservoir_datasets"].find_one({"_id": "current"})
-    if not after or after.get("status") != "complete" or after.get("publication_id") != meta["publication_id"]:
-        raise DatasetNotReady("Reservoir data is being updated. Refresh after publication finishes.")
-    if len(records) != meta.get("rows"):
-        raise ValueError("Atlas reservoir dataset is incomplete; republish it from NVE.")
+    records = get_json(
+        "NVE", "https://biapi.nve.no/magasinstatistikk/api/Magasinstatistikk/HentOffentligData"
+    )
+    if not isinstance(records, list) or not records:
+        raise ApiDataError("NVE returned no usable reservoir observations. Try again later.")
     return prepare_reservoirs(records)
 
 def _remember_area():
@@ -67,20 +62,19 @@ def choose_area(default_kind="NO", default_number=0, panel=None, compact=False):
     panel = controls_panel() if panel is None else panel
     compact = compact or in_popup()
     try:
-        df = load_reservoirs()
-    except (AtlasSetupError, DatasetNotReady) as error:
-        st.info(str(error))
+        with fetch_progress("NVE reservoirs") as update:
+            update(10, "Loading and validating reservoir observations")
+            df = load_reservoirs()
+    except ApiDataError as error:
+        st.error(str(error))
         st.stop()
-    except PyMongoError:
-        st.error("Atlas could not be read. Check MONGO_URI, database-user permissions and Atlas Network Access.")
-        st.stop()
-    except (ValueError, KeyError):
-        st.error("Atlas reservoir records could not be validated. Republish the NVE dataset.")
+    except (ValueError, KeyError, TypeError):
+        st.error("NVE reservoir records could not be validated. Check the response from Magasinstatistikk.")
         st.stop()
     available = df.area_type.unique() if not df.empty else []
     kinds = [kind for kind in ["NO", "EL", "VASS"] if kind in available]
     if not kinds:
-        st.info("No reservoir areas are available in the published Atlas dataset.")
+        st.info("No reservoir areas are available in the NVE response.")
         st.stop()
     from popup_ui import uses_home_selection
     if uses_home_selection():
@@ -104,7 +98,7 @@ def choose_area(default_kind="NO", default_number=0, panel=None, compact=False):
     st.session_state["selected_area_number"] = number
     if not compact:
         st.caption("NO: national; EL: price area; VASS: watercourse area. These classifications overlap.")
-        st.caption("Plot source: MongoDB Atlas · nve.reservoir_weekly · originally published from NVE.")
+        st.caption("Plot source: NVE Magasinstatistikk API.")
     return df.loc[df.area_type.eq(kind) & df.area_number.eq(number)].sort_values("date_id").set_index("date_id")
 
 def reservoir_plot(series, column):
@@ -123,4 +117,3 @@ def reservoir_plot(series, column):
     ax.grid(alpha=0.25)
     fig.tight_layout()
     return fig
-

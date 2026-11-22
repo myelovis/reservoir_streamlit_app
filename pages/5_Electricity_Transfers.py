@@ -2,31 +2,31 @@ import calendar
 import pandas as pd
 import matplotlib.pyplot as plt
 import streamlit as st
-from transfer_data import load_transfers
+from api_data import ApiDataError
+from transfer_data import load_direction, load_transfers
+from ui_feedback import fetch_progress
 from transfer_plots import annual_totals, energy_donut, power_lines, COLORS
 from popup_ui import in_popup, page_title
 
 page_title('Norway–Denmark electricity transfers')
-try:
-    df = load_transfers()
-except Exception:
-    st.error('Transfer data could not be read. Check Atlas and the published Part 2 collection.')
-    st.stop()
-if df.empty:
-    st.info('No transfer observations are available. Publish the Part 2 data first.')
-    st.stop()
-
 with (st.popover('Connection and year') if in_popup() else st.container()):
     left, middle, right = (st.container(), st.container(), st.container()) if in_popup() else st.columns([2,1,1])
-    connection = left.selectbox('Connection', sorted(df.connection.unique()))
-    connection_df = df.loc[df.connection.eq(connection)]
-    years = sorted(connection_df.year.unique(), reverse=True)
-    completed = pd.Timestamp.now(tz='Europe/Oslo').year - 1
-    year = int(middle.selectbox('Year', years, index=years.index(completed) if completed in years else 0))
+    left.selectbox('Connection', ['NO2-DK1'])
+    current = pd.Timestamp.now(tz='Europe/Oslo').year
+    year = int(middle.selectbox('Year', [current, current-1, current-2], index=1))
     if right.button('Refresh data'):
-        load_transfers.clear()
-        st.rerun(scope='fragment' if in_popup() else 'app')
-annual = connection_df.loc[connection_df.year.eq(year)]
+        load_direction.clear(year, "in")
+        load_direction.clear(year, "out")
+try:
+    with fetch_progress("ENTSO-E transfers") as update:
+        df = load_transfers(year, update=update)
+except (ApiDataError, ValueError) as error:
+    st.error(str(error))
+    st.stop()
+if df.empty:
+    st.info('ENTSO-E returned no physical flow observations for this year.')
+    st.stop()
+annual = df
 totals = annual_totals(annual, year)
 if not in_popup():
     st.caption('Dark solid = into Norway / import · light dashed = out of Norway / export')
@@ -75,18 +75,16 @@ with flow:
         st.info('Choose months with reported observations.')
 
 with records:
-    st.caption(f'Available: {df.time.min():%Y-%m-%d} to {df.time.max():%Y-%m-%d} UTC · nve.simple_transfers')
+    st.caption(f'Available: {df.time.min():%Y-%m-%d} to {df.time.max():%Y-%m-%d} UTC · ENTSO-E API')
     st.dataframe(annual.head(100), height=220, width='stretch')
     with st.expander('Source, units and method'):
         st.markdown('''
-        **Source:** ENTSO-E physical flows for NO2 ↔ DK1, published by notebook section 6.2.
-        Pipeline: ENTSO-E → Spark → Cassandra → Spark → MongoDB → Streamlit.
+        **Source:** ENTSO-E physical flows for NO2 ↔ DK1, requested directly by Streamlit.
 
         Power is MW. Energy is MW × interval hours, in MWh. Transfers are not domestic production.
         Year and month selections use Europe/Oslo. Coverage compares reported hours with the full
         calendar year (8,760 hours, or 8,784 in a leap year). Missing periods are not filled with zero.
 
-        Atlas writes are batched, not an atomic snapshot. Refresh after publication finishes.
         This example covers one connection, not all Norwegian imports and exports.
         ''')
         st.link_button('ENTSO-E API reference', 'https://documenter.getpostman.com/view/7009892/2s93JtP3F6')

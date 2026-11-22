@@ -26,5 +26,4 @@ fig = reservoir_plot(selected, column)
 st.pyplot(fig)
 plt.close(fig)
 st.caption("All measures uses min–max scaling over the selected interval; constant measures appear at zero.")
-st.caption("The slider filters the NVE observations published in MongoDB Atlas.")
-
+st.caption("The slider filters the NVE observations fetched from the NVE API.")

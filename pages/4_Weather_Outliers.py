@@ -13,12 +13,11 @@ start, end = choose_period(series, weather_dates=True)
 with explain_errors():
     years = [year for year in weather_years(area_id(series)) if start.year <= year <= end.year]
     if not years:
-        st.info('No complete weather year is published for this region in the selected period. Change the dates on Home.')
+        st.info('No complete ERA5 archive year is available for this selection. Change the dates on Home.')
         st.stop()
     year = st.selectbox('Analysis year', years, index=len(years)-1,
                         help='Analyse one year at a time. SPC limits use that complete year.')
-    with st.spinner('Reading weather from Atlas…'):
-        weather, source = load_weather(area_id(series),year)
+    weather, source = load_weather(area_id(series), year)
     st.caption(source)
     st.caption(f'Limits use the complete year {year}. Plots show its overlap with the shared time frame.')
     spc_tab, lof_tab = st.tabs(['DCT / SPC','LOF'])

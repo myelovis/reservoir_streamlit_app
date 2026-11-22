@@ -1,118 +1,95 @@
-"""Read prepared weather from Atlas. Keep old NO3 data available."""
+"""Fetch and cache regional hourly ERA5 observations directly from Open-Meteo."""
+from datetime import date, timedelta
+
 import numpy as np
 import pandas as pd
 import streamlit as st
-from atlas_data import atlas_db, DatasetNotReady
-from weather_stats import PROPERTIES
+
+from api_data import ApiDataError, get_json
+from region_tools import read_areas, sample_regions
+from ui_feedback import fetch_progress
+
+ARCHIVE = "https://archive-api.open-meteo.com/v1/archive"
+FIRST_DAY = date(1940, 1, 1)
+PROPERTIES = ("temperature_2m", "precipitation")
+SAMPLE_COUNT = 5
 
 
-def metadata_year(value):
-    if isinstance(value, str) and len(value) == 4 and value.isascii() and value.isdecimal():
-        return int(value)
-    if isinstance(value, (int, np.integer)) and not isinstance(value, bool):
-        return int(value)
-    return None
+def archive_end():
+    # Use a full UTC date and allow for the published ERA5 update delay.
+    return pd.Timestamp.now(tz="UTC").date() - timedelta(days=6)
 
 
-@st.cache_data(ttl=300, max_entries=32, show_spinner=False)
 def weather_years(region_id):
-    """Read year labels only. Do not download the weather payloads."""
-    db = atlas_db()
-    years = set()
-    current_year = pd.Timestamp.now(tz='Europe/Paris').year
-    for name in ['era5_datasets_v4', 'era5_datasets', 'era5_history_v1']:
-        query = {'region_id': region_id, 'model': 'era5', 'status': 'complete'}
-        for record in db[name].find(query, {'_id': 0, 'year': 1}):
-            year = metadata_year(record.get('year'))
-            if year is not None and 1940 <= year <= current_year:
-                years.add(year)
-    return sorted(years)
+    """Return complete calendar years in the archive's advertised range."""
+    end = archive_end()
+    last = end.year if (end.month, end.day) == (12, 31) else end.year - 1
+    return range(FIRST_DAY.year, last + 1)
 
 
-def validate_weather(frame, region_id, year):
-    frame = frame.copy()
-    if not {'time', 'temperature_2m', 'precipitation'}.issubset(frame.columns):
-        raise ValueError('Weather needs time, temperature_2m and precipitation.')
-    if 'region_id' in frame and not frame.region_id.eq(region_id).all():
-        raise ValueError('The weather belongs to a different region.')
-    if 'model' in frame and not frame.model.eq('era5').all():
-        raise ValueError('Only ERA5 historical reanalysis is accepted.')
-    frame['time'] = pd.to_datetime(frame.time, utc=True)
-    frame = frame.set_index('time').sort_index()
-    expected = pd.date_range(f'{year}-01-01', f'{year+1}-01-01', freq='h', inclusive='left', tz='UTC')
-    if not frame.index.equals(expected):
-        raise ValueError(f'The {year} dataset needs all {len(expected)} unique hourly rows.')
-    columns = [column for column in PROPERTIES if column in frame]
-    frame = frame[columns].apply(pd.to_numeric)
-    if not np.isfinite(frame.to_numpy()).all():
-        raise ValueError('Weather contains missing or infinite values. Prepare it again.')
-    for column in set(columns)-{'temperature_2m'}:
-        if frame[column].lt(0).any():
-            raise ValueError(f'{column} cannot be negative.')
-    return frame
+@st.cache_data(show_spinner=False)
+def sample_coordinates(region_id):
+    kind = "VASS" if region_id.startswith("VASS") else "NO" if region_id == "NO0" else "EL"
+    areas = read_areas(kind)
+    area = areas.loc[areas.area_id.eq(region_id)]
+    if area.empty:
+        raise ApiDataError(f"No boundary is available for {region_id}.")
+    points = sample_regions(area, n=SAMPLE_COUNT)
+    note = " · approximate boundary" if area.iloc[0].get("boundary_status") == "approximate" else ""
+    return points[["latitude", "longitude"]], note
 
 
-@st.cache_data(ttl=600, max_entries=40, show_spinner=False)
+@st.cache_data(ttl=86400, max_entries=64, show_spinner=False)
+def fetch_period(region_id, start, end):
+    points, note = sample_coordinates(region_id)
+    payload = get_json("Open-Meteo ERA5", ARCHIVE, {
+        "latitude": ",".join(points.latitude.map(lambda value: f"{value:.5f}")),
+        "longitude": ",".join(points.longitude.map(lambda value: f"{value:.5f}")),
+        "start_date": start.isoformat(),
+        "end_date": end.isoformat(),
+        "hourly": ",".join(PROPERTIES),
+        "models": "era5",
+        "timezone": "GMT",
+    })
+    expected = pd.date_range(start, end + timedelta(days=1), inclusive="left", freq="h", tz="UTC")
+    if not isinstance(payload, list) or len(payload) != len(points):
+        raise ApiDataError(f"Open-Meteo did not return all weather samples for {region_id}. Retry or shorten the range.")
+    frames = []
+    try:
+        for location in payload:
+            hourly = pd.DataFrame(location["hourly"])
+            index = pd.DatetimeIndex(pd.to_datetime(hourly["time"], utc=True))
+            values = hourly[list(PROPERTIES)].apply(pd.to_numeric).to_numpy(dtype=float)
+            if not index.equals(expected) or not np.isfinite(values).all() or (values[:, 1] < 0).any():
+                raise ValueError("Incomplete or invalid hourly series")
+            frames.append(values)
+    except (KeyError, TypeError, ValueError):
+        raise ApiDataError(f"Open-Meteo returned missing or invalid hours for {region_id}. Change the dates or retry.") from None
+    expected.name = "time"
+    frame = pd.DataFrame(np.mean(frames, axis=0), index=expected, columns=PROPERTIES)
+    return frame, f"Open-Meteo ERA5 API · {region_id} · mean of {len(points)} fixed sample points{note}"
+
+
+def load_period(region_id, start, end, update=None):
+    start, end = pd.Timestamp(start).date(), pd.Timestamp(end).date()
+    available = archive_end()
+    if start < FIRST_DAY or start > end or end > available:
+        raise ApiDataError(f"Choose ERA5 dates between {FIRST_DAY} and {available}. Recent days have a publication delay.")
+    if update is None:
+        with fetch_progress("Open-Meteo weather") as report:
+            return load_period(region_id, start, end, update=report)
+    parts = []
+    years = range(start.year, end.year + 1)
+    for index, year in enumerate(years):
+        update(round(100 * index / len(years)), f"Requesting or reading {region_id} · {year}")
+
+        frame, source = fetch_period(
+            region_id, max(start, date(year, 1, 1)), min(end, date(year, 12, 31))
+        )
+        parts.append(frame)
+        update(round(95 * (index + 1) / len(years)), f"Weather validated · {region_id} · {year}")
+    return pd.concat(parts), source
+
+
 def load_weather(region_id, year):
-    db = atlas_db()
-    key = f'era5_{region_id}_{year}_n200_v4'
-    meta = db.era5_datasets_v4.find_one({'_id': key})
-    if meta and meta.get('status') == 'complete':
-        query = {'dataset_id': key}
-        collection, metadata = db.era5_hourly_v4, db.era5_datasets_v4
-    else:
-        key = f'era5_{region_id}_{year}'
-        meta = db.era5_datasets.find_one({'_id': key})
-        query = {'region_id': region_id, 'model': 'era5', 'time': {
-            '$gte': pd.Timestamp(f'{year}-01-01', tz='UTC').to_pydatetime(),
-            '$lt': pd.Timestamp(f'{year+1}-01-01', tz='UTC').to_pydatetime()}}
-        collection, metadata = db.era5_hourly, db.era5_datasets
-    if not meta or meta.get('status') != 'complete':
-        from history_store import COLLECTION, decode
-        key = f'era5_{region_id}_{year}_subset25_v1'
-        history = db[COLLECTION].find_one({'_id': key, 'status': 'complete'})
-        if history is not None:
-            if (history.get('model') != 'era5' or history.get('region_id') != region_id
-                    or metadata_year(history.get('year')) != year or history.get('format') != 'npz-float64-v1'
-                    or history.get('sample_count', 0) < 25
-                    or history.get('properties') != ['temperature_2m', 'precipitation']):
-                raise ValueError('History metadata does not match the chosen region and year.')
-            import hashlib
-            payload = history.get('payload', b'')
-            if hashlib.sha256(payload).hexdigest() != history.get('payload_hash'):
-                raise ValueError('The compressed history did not pass its integrity check.')
-            result = decode(payload, year)
-            if len(result) != history.get('hours'):
-                raise ValueError('History hour count does not match its metadata.')
-            note = ' · approximate administrative-region boundaries' if history.get('boundary_status') == 'approximate' else ''
-            return result, (f'Atlas · {region_id} · {year} · {history["sample_count"]} fixed-subset samples'
-                            ' · area-weighted mean'+note)
-        if region_id.startswith('VASS'):
-            raise DatasetNotReady(f'No ERA5 weather is published for {region_id} in {year}. '
-                                  'Its map boundary does not include weather observations. '
-                                  'Choose a prepared region/year while the app owner publishes VASS weather.')
-        raise DatasetNotReady(f'Prepare {region_id}, {year} locally, then run publish_local.py --year {year}.')
-    count = meta.get('sample_count', meta.get('source_sample_count', 0))
-    if count < 1 or meta.get('region_id') != region_id or metadata_year(meta.get('year')) != year or meta.get('model') != 'era5':
-        raise ValueError('Weather metadata does not match the selected dataset.')
-    records = list(collection.find(query, {'_id': 0}).sort('time', 1))
-    after = metadata.find_one({'_id': key})
-    if not after or after.get('status') != 'complete' or after.get('updated_at') != meta.get('updated_at'):
-        raise DatasetNotReady('Weather is being updated. Please try again later.')
-    result = validate_weather(pd.DataFrame(records), region_id, year)
-    if meta.get('hours') != len(result):
-        raise ValueError('Weather row count does not match its metadata.')
-    method = meta.get('sampling_method', 'original samples')
-    note = ' · approximate administrative-region boundaries' if meta.get('boundary_status') == 'approximate' else ''
-    return result, f'Atlas · {region_id} · {year} · {count} samples · {method}{note}'
-
-
-@st.cache_data(ttl=600, max_entries=4, show_spinner=False)
-def load_period(region_id, start, end):
-    start, end = pd.Timestamp(start), pd.Timestamp(end)
-    parts, sources = [], []
-    for year in range(start.year, end.year+1):
-        values, source = load_weather(region_id, year)
-        parts.append(values)
-        sources.append(source)
-    return pd.concat(parts).loc[str(start.date()):str(end.date())], '; '.join(sources)
+    return load_period(region_id, date(year, 1, 1), date(year, 12, 31))
