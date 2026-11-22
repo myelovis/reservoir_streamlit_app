@@ -53,34 +53,37 @@ def flow_records(payload, direction):
 
 
 @st.cache_data(ttl=3600, max_entries=12, show_spinner=False)
-def load_transfers(year, _update=None):
+def load_direction(year, direction):
     token = get_secret("ENTSOE_TOKEN")
     start = pd.Timestamp(year=year, month=1, day=1, tz="Europe/Oslo")
     end = min(start + pd.DateOffset(years=1), pd.Timestamp.now(tz="Europe/Oslo").normalize())
+    origin, destination = (DK1, NO2) if direction == "in" else (NO2, DK1)
+    response = get_response("ENTSO-E", URL, {
+        "securityToken": token,
+        "documentType": "A11",
+        "out_Domain": origin,
+        "in_Domain": destination,
+        "periodStart": start.tz_convert("UTC").strftime("%Y%m%d%H%M"),
+        "periodEnd": end.tz_convert("UTC").strftime("%Y%m%d%H%M"),
+    })
+    rows = flow_records(response.content, direction)
+    if not rows:
+        return pd.DataFrame()
+    frame = pd.DataFrame(rows).drop_duplicates().sort_values("time")
+    finish = (frame.time + pd.to_timedelta(frame.hours, unit="h")).cummax()
+    if (frame.time.iloc[1:].to_numpy() < finish.iloc[:-1].to_numpy()).any():
+        raise ApiDataError("ENTSO-E returned overlapping physical flow intervals.")
+    return clip_intervals(frame, start, end)
+
+
+def load_transfers(year, update=None):
     frames = []
-    directions = (("in", DK1, NO2), ("out", NO2, DK1))
-    for index, (direction, origin, destination) in enumerate(directions):
-        label = "imports" if direction == "in" else "exports"
-        if _update:
-            _update(index * 45, f"Requesting {label}")
-        response = get_response("ENTSO-E", URL, {
-            "securityToken": token,
-            "documentType": "A11",
-            "out_Domain": origin,
-            "in_Domain": destination,
-            "periodStart": start.tz_convert("UTC").strftime("%Y%m%d%H%M"),
-            "periodEnd": end.tz_convert("UTC").strftime("%Y%m%d%H%M"),
-        })
-        if _update:
-            _update(index * 45 + 30, f"Validating {label}")
-        rows = flow_records(response.content, direction)
-        if not rows:
-            continue
-        frame = pd.DataFrame(rows).drop_duplicates().sort_values("time")
-        finish = (frame.time + pd.to_timedelta(frame.hours, unit="h")).cummax()
-        if (frame.time.iloc[1:].to_numpy() < finish.iloc[:-1].to_numpy()).any():
-            raise ApiDataError("ENTSO-E returned overlapping physical flow intervals.")
-        frames.append(clip_intervals(frame, start, end))
+    for percent, direction, label in ((10, "in", "imports"), (50, "out", "exports")):
+        if update:
+            update(percent, f"Loading and validating {label}")
+        frame = load_direction(year, direction)
+        if not frame.empty:
+            frames.append(frame)
     if not frames:
         return pd.DataFrame()
     return pd.concat(frames).sort_values(["time", "direction"]).reset_index(drop=True)

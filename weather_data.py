@@ -40,7 +40,7 @@ def sample_coordinates(region_id):
 
 
 @st.cache_data(ttl=86400, max_entries=64, show_spinner=False)
-def fetch_period(region_id, start, end, _received=None):
+def fetch_period(region_id, start, end):
     points, note = sample_coordinates(region_id)
     payload = get_json("Open-Meteo ERA5", ARCHIVE, {
         "latitude": ",".join(points.latitude.map(lambda value: f"{value:.5f}")),
@@ -51,8 +51,6 @@ def fetch_period(region_id, start, end, _received=None):
         "models": "era5",
         "timezone": "GMT",
     })
-    if _received:
-        _received()
     expected = pd.date_range(start, end + timedelta(days=1), inclusive="left", freq="h", tz="UTC")
     if not isinstance(payload, list) or len(payload) != len(points):
         raise ApiDataError(f"Open-Meteo did not return all weather samples for {region_id}. Retry or shorten the range.")
@@ -85,14 +83,11 @@ def load_period(region_id, start, end, update=None):
     for index, year in enumerate(years):
         update(round(100 * index / len(years)), f"Requesting or reading {region_id} · {year}")
 
-        def received():
-            update(round(100 * (index + .75) / len(years)), f"Validating {region_id} · {year}")
-
         frame, source = fetch_period(
-            region_id, max(start, date(year, 1, 1)), min(end, date(year, 12, 31)),
-            _received=received,
+            region_id, max(start, date(year, 1, 1)), min(end, date(year, 12, 31))
         )
         parts.append(frame)
+        update(round(95 * (index + 1) / len(years)), f"Weather validated · {region_id} · {year}")
     return pd.concat(parts), source
 
 

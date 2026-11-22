@@ -40,14 +40,10 @@ def prepare_reservoirs(records):
 
 
 @st.cache_data(ttl=300, show_spinner=False)
-def load_reservoirs(_update=None):
-    if _update:
-        _update(10, "Requesting reservoir observations")
+def load_reservoirs():
     records = get_json(
         "NVE", "https://biapi.nve.no/magasinstatistikk/api/Magasinstatistikk/HentOffentligData"
     )
-    if _update:
-        _update(70, "Response received · validating observations")
     if not isinstance(records, list) or not records:
         raise ApiDataError("NVE returned no usable reservoir observations. Try again later.")
     return prepare_reservoirs(records)
@@ -67,7 +63,8 @@ def choose_area(default_kind="NO", default_number=0, panel=None, compact=False):
     compact = compact or in_popup()
     try:
         with fetch_progress("NVE reservoirs") as update:
-            df = load_reservoirs(_update=update)
+            update(10, "Loading and validating reservoir observations")
+            df = load_reservoirs()
     except ApiDataError as error:
         st.error(str(error))
         st.stop()

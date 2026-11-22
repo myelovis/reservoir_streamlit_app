@@ -90,6 +90,45 @@ h1, h2, h3 { color: var(--forest); font-weight: 650; letter-spacing: -.025em; }
 [data-testid="stProgress"] p { color: var(--forest); }
 [data-testid="stHeaderActionElements"] { display: none; }
 
+/* Keep the progress track pale and the completed portion visibly green. */
+[data-testid="stProgress"] [data-baseweb="progress-bar"] > div:first-child {
+    background-color: #d9eadc !important;
+}
+[data-testid="stProgress"] [data-baseweb="progress-bar"] > div:first-child > div,
+[data-testid="stProgress"] [role="progressbar"] > div {
+    background-color: #287451 !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stSidebarNav"] a,
+[data-testid="stSidebar"] [data-testid="stSidebarNav"] span,
+[data-testid="stSidebar"] [data-testid="stSidebarNav"] p {
+    color: var(--forest) !important;
+    font-weight: 750 !important;
+}
+[data-testid="stSidebarNav"] a[aria-current="page"] {
+    background: #d9eadc;
+    border-radius: 8px;
+}
+
+[data-testid="stMain"], [data-testid="stSidebar"], [data-testid="stDialog"] [role="dialog"] {
+    color: var(--forest);
+    font-weight: 700;
+}
+:is([data-testid="stMain"], [data-testid="stSidebar"], [role="dialog"])
+:is(p, label, button p, [role="tab"], [role="combobox"], input, td, th, summary,
+    [data-testid="stMetricLabel"], [data-testid="stMetricValue"]) {
+    color: var(--forest);
+    font-weight: 700;
+}
+[data-testid="stMain"] button[kind="primary"],
+[data-testid="stDialog"] button[kind="primary"] {
+    background: #d2e7d6;
+    border-color: #8eaf97;
+    color: var(--forest);
+    font-weight: 750;
+}
+[data-testid="stPlotlyChart"] svg text { font-weight: 700; }
+
 @media (max-width: 760px) {
     [data-testid="stMainBlockContainer"] { padding-top: 2rem; }
     .st-key-region_picker [data-testid="stHorizontalBlock"] { flex-wrap: wrap; }
