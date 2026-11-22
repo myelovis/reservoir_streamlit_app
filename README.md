@@ -1,5 +1,6 @@
 # Chronological Insights · Norway
 
+```text
 Chronological Insights
 └── Home
     ├── Select region and dates
@@ -19,6 +20,9 @@ Chronological Insights
     └── Forecast
         └── ↗ Reservoir forecast → NVE + optional Open-Meteo weather
             └── SARIMAX, Ridge, or Boosting → animated weekly forecast
+```
+
+**Data structure in one line:** GeoJSON defines the areas, NVE provides weekly reservoir records, Open-Meteo provides hourly weather, and ENTSO-E provides electricity-flow intervals.
 
 ## APIs at a glance
 
