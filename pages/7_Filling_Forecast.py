@@ -68,7 +68,7 @@ with settings('Forecast settings'):
                 parameters['alpha'] = b.number_input('Ridge penalty', .01, 100., 1.)
         scenario = st.selectbox('Weather assumption', ['Recent mean', 'Training seasonal mean', 'Upload CSV'])
         upload = st.file_uploader('Optional future weather CSV: date and selected property columns', type='csv')
-        st.caption('Weather must cover the selected history. Available downloads currently cover 2024. Future weather is an assumption.')
+        st.caption('Open-Meteo ERA5 must cover every training week. Future weather uses the selected scenario.')
         submitted = st.form_submit_button('Run forecast', type='primary')
 
 # Keep old results hidden when the settings change.
@@ -82,11 +82,12 @@ if submitted:
         y = observed.tail(int(history))
         exog = future = None
         if properties:
-            with st.spinner('Reading weather…'):
-                weather, _ = load_period(area_id(series), y.index[0].date(), y.index[-1].date())
-                exog = weekly_weather(weather).reindex(y.index)[properties]
+            weather, _ = load_period(
+                area_id(series), y.index[0].date() - pd.Timedelta(days=6), y.index[-1].date()
+            )
+            exog = weekly_weather(weather).reindex(y.index)[properties]
             if exog.isna().any().any():
-                raise ValueError('Weather does not cover every history week. Choose dates inside 2024, prepare more weather, or remove weather inputs.')
+                raise ValueError('Weather does not cover every history week. Choose dates with complete ERA5 weeks or remove weather inputs.')
             dates = pd.date_range(y.index[-1]+pd.Timedelta(days=7), periods=horizon, freq='7D')
             if scenario == 'Upload CSV':
                 if upload is None:

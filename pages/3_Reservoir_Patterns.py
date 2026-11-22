@@ -43,7 +43,7 @@ if len(selected) != 2:
     st.info("Choose a start and an end date.")
     st.stop()
 filling = series.loc[str(selected[0]):str(selected[1]), "fill_ratio"] * 100
-st.caption(f'{label} · {len(filling)} weekly observations · filling (%) · NVE / Atlas')
+st.caption(f'{label} · {len(filling)} weekly observations · filling (%) · NVE API')
 
 stl_tab, spectral_tab = st.tabs(["STL decomposition", "Spectrogram"])
 with stl_tab:

@@ -10,9 +10,8 @@ page_title('Weather and reservoir correlation')
 series = choose_area(default_kind='EL',default_number=3)
 start, end = choose_period(series)
 with explain_errors():
-    with st.spinner('Matching hourly weather to weekly filling…'):
-        weather, source = load_period(area_id(series),start,end)
-        frame = combine_weekly(series.fill_ratio,weather).loc[str(start):str(end)]
+    weather, source = load_period(area_id(series),start,end)
+    frame = combine_weekly(series.fill_ratio,weather).loc[str(start):str(end)]
     with settings('Correlation settings'):
         property_name = st.selectbox('Weather property',list(weather.columns),format_func=lambda x:PROPERTIES[x][0])
         target = st.selectbox('Reservoir variable',['filling_change','filling'],

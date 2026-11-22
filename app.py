@@ -55,7 +55,7 @@ def home():
     if st.session_state.get('analysis_popup_label'):
         from analysis_popup import open_analysis
         open_analysis(st.session_state['analysis_popup_label'])
-    st.caption('NVE · ERA5 · ENTSO-E / Saved observations from MongoDB Atlas')
+    st.caption('NVE · ERA5 · ENTSO-E / Data fetched directly from the APIs')
 
 
 page = st.navigation({
