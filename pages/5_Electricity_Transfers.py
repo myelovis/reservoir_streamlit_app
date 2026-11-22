@@ -13,8 +13,11 @@ with (st.popover('Connection and year') if in_popup() else st.container()):
     left, middle, right = (st.container(), st.container(), st.container()) if in_popup() else st.columns([2,1,1])
     left.selectbox('Connection', ['NO2-DK1'], help='Physical flow between southern Norway and western Denmark.')
     current = pd.Timestamp.now(tz='Europe/Oslo').year
-    year = int(middle.selectbox('Year', [current, current-1, current-2], index=1,
-                                help='The previous complete calendar year is selected by default.'))
+    years = list(range(current, 2014, -1))  # The Transparency Platform launched in 2015.
+    year = int(middle.selectbox(
+        'Year', years, index=1,
+        help='Defaults to the previous calendar year. Older years may have gaps or no reported flows for this connection.',
+    ))
     if right.button('Refresh data'):
         load_direction.clear(year, "in")
         load_direction.clear(year, "out")
