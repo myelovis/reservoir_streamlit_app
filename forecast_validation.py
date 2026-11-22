@@ -36,14 +36,21 @@ MODELS = {'SARIMAX': sarimax_forecast, 'Ridge regression': ridge_forecast,
           'Boosting': boosting_forecast}
 
 
-def tune_boosting(y, exog=None, parameters=None, scenario='Recent mean'):
-    """Try at most six settings using only the training period."""
+DEFAULT_LEARNING_RATES = (.03, .1, .2)
+
+
+def tune_boosting(y, exog=None, parameters=None, scenario='Recent mean',
+                  learning_rates=DEFAULT_LEARNING_RATES):
+    """Compare up to five learning rates using only the training period."""
     parameters = dict(parameters or {})
+    rates = tuple(dict.fromkeys(learning_rates))
+    if not 1 <= len(rates) <= 5 or any(not 0 < rate <= 1 for rate in rates):
+        raise ValueError('Choose one to five learning rates in (0, 1] before tuning.')
     validation = min(8, len(y)//5)
     fit, test = y.iloc[:-validation], y.iloc[-validation:]
     rows = []
     for history in sorted({min(104, len(fit)), len(fit)}):
-        for rate in [.03, .1, .2]:
+        for rate in rates:
             train = fit.tail(history)
             if len(train) < max(24, parameters.get('lags', 8)+11):
                 continue
@@ -59,7 +66,8 @@ def tune_boosting(y, exog=None, parameters=None, scenario='Recent mean'):
 
 
 def evaluate_forecast(y, model, parameters, horizon=12, holdout=13,
-                      exog=None, future_exog=None, scenario='Recent mean', tune=False):
+                      exog=None, future_exog=None, scenario='Recent mean', tune=False,
+                      learning_rates=DEFAULT_LEARNING_RATES):
     y = check_training(y, exog)
     if model not in MODELS or horizon < 1:
         raise ValueError('Choose a supported model and a positive forecast horizon.')
@@ -77,7 +85,9 @@ def evaluate_forecast(y, model, parameters, horizon=12, holdout=13,
     if tune:
         if model != 'Boosting':
             raise ValueError('Automatic tuning is available for Boosting.')
-        tuning = tune_boosting(train, None if exog is None else exog.reindex(train.index), parameters, scenario)
+        tuning = tune_boosting(
+            train, None if exog is None else exog.reindex(train.index), parameters, scenario, learning_rates
+        )
         parameters['learning_rate'] = float(tuning.iloc[0].learning_rate)
         # The final fit adds the holdout weeks to the chosen training history.
         train = train.tail(int(tuning.iloc[0].history_weeks))

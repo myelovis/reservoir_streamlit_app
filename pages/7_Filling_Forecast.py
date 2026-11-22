@@ -7,14 +7,14 @@ from shared_ui import choose_period, area_id, explain_errors
 from weather_data import load_period
 from weather_stats import PROPERTIES, weekly_weather
 from forecast_tools import future_weather
-from forecast_validation import evaluate_forecast, MODELS
+from forecast_validation import DEFAULT_LEARNING_RATES, MODELS, evaluate_forecast
 from plot_tools import forecast_animation
 
 
 @st.cache_data(ttl=1800, max_entries=12, show_spinner=False)
-def fit_forecast(y, model, parameters, horizon, holdout, exog, future, scenario, tune):
+def fit_forecast(y, model, parameters, horizon, holdout, exog, future, scenario, tune, learning_rates):
     return evaluate_forecast(y, model, parameters, horizon, holdout,
-                             exog, future, scenario, tune)
+                             exog, future, scenario, tune, learning_rates)
 
 
 page_title('Filling forecast')
@@ -42,6 +42,7 @@ with settings('Forecast settings'):
             format_func=lambda name: PROPERTIES[name][0], key='forecast_weather',
             help='Add weekly temperature or precipitation. Selected properties need complete ERA5 coverage.')
         tune = False
+        learning_rates = DEFAULT_LEARNING_RATES
         if model == 'SARIMAX':
             a, b, c = st.columns(3)
             order = (a.number_input('p · past values', 0, 3, 1, help='How many earlier filling values the model uses.'),
@@ -71,14 +72,20 @@ with settings('Forecast settings'):
                                  help='Number of previous filling values passed to the model.'))
             if model == 'Boosting':
                 parameters['learning_rate'] = b.number_input('Learning rate', .001, 1., .03, .01, format='%.3f',
-                                                             help='How much each new tree changes the prediction.')
+                                                             help='How much each new tree changes the prediction when automatic tuning is off.')
                 with st.expander('Boosting settings'):
                     parameters['trees'] = st.slider('Trees', 25, 200, 100, 25,
                                                     help='Number of trees fitted in sequence.')
                     parameters['depth'] = st.slider('Tree depth', 1, 4, 2,
                                                     help='Higher depth lets each tree learn more complex patterns.')
-                    tune = st.checkbox('Tune history and learning rate (up to 6 trials)',
-                                       help='Uses an earlier validation period to compare settings.')
+                    tune = st.checkbox('Tune history and learning rate',
+                                       help='Compare up to two training-history lengths with your selected rates.')
+                    learning_rates = tuple(st.multiselect(
+                        'Learning rates to test', [.001, .005, .01, .02, .03, .05, .1, .15, .2, .3, .5, 1.],
+                        default=list(DEFAULT_LEARNING_RATES), max_selections=5,
+                        format_func=lambda rate: f'{rate:g}',
+                        help='Used only when tuning is enabled. Pick up to five rates for up to ten trials.',
+                    ))
                     st.caption('Tuning uses an earlier validation period. The final holdout stays unseen.')
             else:
                 parameters['alpha'] = b.number_input('Ridge penalty', .01, 100., 1.,
@@ -92,7 +99,7 @@ with settings('Forecast settings'):
 
 # Keep old results hidden when the settings change.
 context = repr((area_id(series), str(start), str(end), model, history, holdout,
-                horizon, parameters, properties, scenario, tune))
+                horizon, parameters, properties, scenario, tune, learning_rates if tune else ()))
 if upload is not None:
     import hashlib
     context += hashlib.sha256(upload.getvalue()).hexdigest()
@@ -119,7 +126,8 @@ if submitted:
             else:
                 future = future_weather(exog, dates, scenario)
         with st.spinner('Testing unseen weeks and fitting the future forecast…'):
-            result = fit_forecast(y, model, parameters, int(horizon), int(holdout), exog, future, scenario, tune)
+            result = fit_forecast(y, model, parameters, int(horizon), int(holdout),
+                                  exog, future, scenario, tune, learning_rates)
         st.session_state['forecast_result_v2'] = (context, result)
 
 saved = st.session_state.get('forecast_result_v2')
@@ -145,6 +153,7 @@ if saved and saved[0] == context:
         st.download_button('Download predictions', table.to_csv().encode(), 'forecast.csv', 'text/csv')
         st.write({'History weeks': result['history_weeks'], **result['parameters']})
         if not result['tuning'].empty:
+            st.caption(f"Selected learning rate: {result['parameters']['learning_rate']:g} · lowest validation MAE")
             st.dataframe(result['tuning'], hide_index=True, width='stretch')
     with method:
         st.write('Holdout predictions use only earlier filling values. We then fit again using all selected history to forecast the future. Each forecast uses its own earlier predictions.')
