@@ -1,5 +1,6 @@
 """Build a small Folium map. Clicks are checked against real polygons."""
 import folium
+from branca.element import Element
 import branca.colormap as cm
 import numpy as np
 import streamlit as st
@@ -57,6 +58,13 @@ def colour_map(outlines, colour_kind, property_name, start, end, selected):
         shaded['value'] = shaded['name']
     bounds = outlines.total_bounds
     result = folium.Map(location=[65,13],zoom_start=4,tiles=None)
+    result.get_root().header.add_child(Element("""
+        <style>
+            .leaflet-container { background: #edf4ed; border-radius: 8px; }
+            .leaflet-bar a, .leaflet-bar a:hover { background: #f7faf7; color: #295b44; }
+            .leaflet-control-attribution a { color: #295b44; }
+        </style>
+    """))
     folium.GeoJson(shaded.to_json(),style_function=lambda f:{
         'fillColor':f['properties']['colour'],'fillOpacity':.38,'weight':0}).add_to(result)
     folium.GeoJson(outlines.to_json(),style_function=lambda f:{

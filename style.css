@@ -1,6 +1,6 @@
 :root {
-    --forest: #153f31;
-    --green: #236343;
+    --forest: #295b44;
+    --green: #326e4f;
     --muted: #3e6550;
     --border: #bfd4c4;
     --surface: #eaf3eb;
@@ -11,7 +11,10 @@
     background: var(--paper);
     color: var(--forest);
 }
-[data-testid="stMainBlockContainer"] { max-width: 1240px; padding-top: 3.5rem; }
+[data-testid="stMainBlockContainer"] {
+    max-width: 1440px;
+    padding: clamp(3.1rem, 7vh, 4.5rem) clamp(1rem, 3vw, 3.75rem) 1.25rem;
+}
 [data-testid="stSidebar"] {
     background: var(--surface);
     border-right: 1px solid var(--border);
@@ -24,11 +27,26 @@ h1, h2, h3 { color: var(--forest); font-weight: 650; letter-spacing: -.025em; }
     text-underline-offset: 3px;
 }
 .st-key-home_explore, .st-key-home_diagnose, .st-key-home_forecast {
-    background: var(--surface);
+    background: repeating-linear-gradient(135deg, #eaf3eb 0 12px, #e3efe5 12px 13px);
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 1.1rem !important;
     height: 100%;
+    min-height: clamp(16rem, 44vh, 24rem);
+}
+.st-key-home_cards { container-type: inline-size; }
+.st-key-home_cards [data-testid="stHorizontalBlock"] {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+}
+.st-key-home_cards [data-testid="stColumn"],
+.st-key-region_picker [data-testid="stColumn"] { width: 100%; min-width: 0; }
+.st-key-home_explore [data-testid="stButton"] button,
+.st-key-home_diagnose [data-testid="stButton"] button,
+.st-key-home_forecast [data-testid="stButton"] button {
+    background: #f4f8f4;
+    border-color: #d6e5d9;
 }
 .st-key-home_explore button, .st-key-home_diagnose button, .st-key-home_forecast button {
     justify-content: flex-start;
@@ -47,6 +65,17 @@ h1, h2, h3 { color: var(--forest); font-weight: 650; letter-spacing: -.025em; }
     max-width: 1180px;
     max-height: calc(100dvh - 32px);
 }
+[data-testid="stDialog"] [role="dialog"]:has(.st-key-region_picker) {
+    max-width: 1536px;
+}
+.st-key-region_picker { container-type: inline-size; }
+.st-key-region_picker [data-testid="stHorizontalBlock"] {
+    display: grid;
+    grid-template-columns: clamp(12rem, 19%, 15rem) minmax(0, 1fr);
+    align-items: start;
+}
+.st-key-region_picker [data-testid="stVerticalBlock"] { gap: .6rem; }
+.st-key-region_picker iframe { max-width: 100%; display: block; }
 
 [data-testid="stMain"] button[kind],
 [data-testid="stDialog"] button[kind],
@@ -120,8 +149,21 @@ h1, h2, h3 { color: var(--forest); font-weight: 650; letter-spacing: -.025em; }
 [data-testid="stPlotlyChart"] svg text { font-weight: 700; }
 
 @media (max-width: 760px) {
-    [data-testid="stMainBlockContainer"] { padding-top: 2rem; }
-    .st-key-region_picker [data-testid="stHorizontalBlock"] { flex-wrap: wrap; }
-    .st-key-region_picker [data-testid="stColumn"] { flex: 1 1 100%; }
+    [data-testid="stMainBlockContainer"] { padding-top: 3rem; }
+    [data-testid="stDialog"] [role="dialog"]:has(.st-key-region_picker) {
+        width: calc(100vw - 16px);
+        max-height: calc(100dvh - 16px);
+    }
+}
+@container (max-width: 680px) {
+    .st-key-home_cards [data-testid="stHorizontalBlock"],
+    .st-key-region_picker [data-testid="stHorizontalBlock"] {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .st-key-home_explore, .st-key-home_diagnose, .st-key-home_forecast { min-height: 0; }
+}
+@media (max-height: 800px) {
+    .st-key-home_cards [data-testid="stVerticalBlock"] { gap: .5rem; }
+    .st-key-home_explore, .st-key-home_diagnose, .st-key-home_forecast { min-height: 0; }
 }
 

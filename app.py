@@ -29,7 +29,7 @@ def home():
                 leaf = leaf.with_suffix('.svg')
             if leaf.exists():
                 st.image(str(leaf), width=58)
-    st.write('Understand the past. Explore what comes next.')
+    st.write('Explore Norway’s reservoirs, weather and electricity transfers.')
     st.caption('[Magasinstatistikk](https://biapi.nve.no/magasinstatistikk/swagger/index.html) · '
                '[Open-Meteo / ERA5](https://open-meteo.com/en/docs/historical-weather-api) · '
                '[ENTSO-E](https://transparencyplatform.zendesk.com/hc/en-us/articles/15692855254548-Sitemap-for-Restful-API-Integration)')
@@ -37,7 +37,6 @@ def home():
         st.session_state.pop('analysis_popup_label', None)
         from region_picker import open_region_picker
         open_region_picker()
-    columns = st.columns(3)
     groups = [
         ('Explore', [('pages/1_Reservoir_Table.py','Reservoir table'),
                      ('pages/2_Reservoir_Plots.py','Reservoir plots'),
@@ -48,20 +47,20 @@ def home():
                       ('pages/6_Weather_Correlation.py','Sliding window correlation')]),
         ('Forecast', [('pages/7_Filling_Forecast.py','Reservoir forecast')]),
     ]
-    for column, (title, links) in zip(columns, groups):
-        with column.container(border=True, key=f'home_{title.lower()}'):
-            st.caption({'Explore':'01 / OBSERVE','Diagnose':'02 / UNDERSTAND','Forecast':'03 / LOOK AHEAD'}[title])
-            st.subheader(title)
-            st.write({'Explore':'Reservoirs, weather and energy over time.',
-                      'Diagnose':'Patterns, unusual values and relationships.',
-                      'Forecast':'Future filling with SARIMAX or Ridge.'}[title])
-            for path, label in links:
-                if st.button(label, icon=':material/arrow_outward:', key=f'open_{label}', type='tertiary', width='stretch'):
-                    st.session_state['analysis_popup_label'] = label
+    with st.container(key='home_cards'):
+        columns = st.columns(3, gap='small')
+        for column, (title, links) in zip(columns, groups):
+            with column.container(border=True, key=f'home_{title.lower()}'):
+                st.subheader(title)
+                st.write({'Explore':'Reservoir levels and power flows.',
+                          'Diagnose':'Weather patterns and relationships.',
+                          'Forecast':'Future reservoir levels.'}[title])
+                for path, label in links:
+                    if st.button(label, icon=':material/arrow_outward:', key=f'open_{label}', type='tertiary', width='stretch'):
+                        st.session_state['analysis_popup_label'] = label
     if st.session_state.get('analysis_popup_label'):
         from analysis_popup import open_analysis
         open_analysis(st.session_state['analysis_popup_label'])
-    st.caption('Data sources · NVE Magasinstatistikk · Open-Meteo ERA5 · ENTSO-E')
 
 
 page = st.navigation({

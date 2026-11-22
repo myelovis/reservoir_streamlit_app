@@ -13,7 +13,7 @@ def open_region_picker():
     from weather_stats import PROPERTIES
 
     with st.container(key='region_picker'):
-        controls, map_panel = st.columns([1, 2], gap='medium')
+        controls, map_panel = st.columns([1, 4], gap='medium')
         with controls:
             series = choose_area(default_kind='EL', default_number=3, panel=st, compact=True)
             start, end = choose_period(series, panel=st, compact=True, weather_dates=True)
@@ -34,7 +34,7 @@ def open_region_picker():
             areas = boundaries(kind)
             colour_kind = {'Price area': 'EL', 'Water area': 'VASS', 'Weather property': 'Weather'}[mode]
             figure, missing, displayed = colour_map(areas, colour_kind, prop, start, end, area_id(series))
-            event = st_folium(figure, height=400, use_container_width=True, key=f'picker_map_{kind}',
+            event = st_folium(figure, height=360, use_container_width=True, key=f'picker_map_{kind}',
                              returned_objects=['last_clicked', 'last_object_clicked'])
             click = event.get('last_clicked') or event.get('last_object_clicked')
             if click:
