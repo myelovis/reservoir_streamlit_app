@@ -7,6 +7,7 @@ from region_tools import read_areas
 from weather_data import load_period
 from weather_stats import PROPERTIES
 from api_data import ApiDataError
+from ui_feedback import fetch_progress
 
 PALETTE = ['#287451','#549366','#78ad87','#a0c6a4','#386b4c']
 
@@ -30,13 +31,21 @@ def colour_map(outlines, colour_kind, property_name, start, end, selected):
     if colour_kind == 'Weather':
         st.caption('Weather shading estimates the regional value from five fixed sample points per area.')
         values = []
-        for area in shaded.itertuples():
-            try:
-                data, _ = load_period(area.area_id,start,end)
-                values.append(float(getattr(data[property_name],PROPERTIES[property_name][2])()))
-            except ApiDataError:
-                values.append(np.nan)
-                missing.append(area.area_id)
+        with fetch_progress("Open-Meteo map weather") as update:
+            for index, area in enumerate(shaded.itertuples()):
+                def report(percent, stage):
+                    update(round((index + percent / 100) * 100 / len(shaded)), stage)
+
+                try:
+                    data, _ = load_period(area.area_id, start, end, update=report)
+                    values.append(float(getattr(data[property_name], PROPERTIES[property_name][2])()))
+                except ApiDataError:
+                    values.append(np.nan)
+                    missing.append(area.area_id)
+            if missing:
+                update(99, "Map ready with unavailable areas marked")
+            else:
+                update(99, "Preparing map colours")
         finite = [value for value in values if np.isfinite(value)]
         low, high = (min(finite),max(finite)) if finite else (0,1)
         legend = cm.LinearColormap(['#edf6ee','#8aba94','#205b3d'],vmin=low,vmax=max(high,low+1e-6))
@@ -49,13 +58,11 @@ def colour_map(outlines, colour_kind, property_name, start, end, selected):
     bounds = outlines.total_bounds
     result = folium.Map(location=[65,13],zoom_start=4,tiles=None)
     folium.GeoJson(shaded.to_json(),style_function=lambda f:{
-        'fillColor':f['properties']['colour'],'fillOpacity':.38,'weight':0},
-        tooltip=folium.GeoJsonTooltip(fields=['name','value'])).add_to(result)
+        'fillColor':f['properties']['colour'],'fillOpacity':.38,'weight':0}).add_to(result)
     folium.GeoJson(outlines.to_json(),style_function=lambda f:{
         'color':'#0b3823' if f['properties']['area_id']==selected else '#4a7358',
-        'weight':4 if f['properties']['area_id']==selected else 1.2,'fillOpacity':0},
-        tooltip=folium.GeoJsonTooltip(fields=['name'])).add_to(result)
+        'weight':4 if f['properties']['area_id']==selected else 1.2,'fillOpacity':0}).add_to(result)
     result.fit_bounds([[bounds[1],bounds[0]],[bounds[3],bounds[2]]])
     if legend:
         legend.add_to(result)
-    return result, missing
+    return result, missing, shaded[["name", "value"]]

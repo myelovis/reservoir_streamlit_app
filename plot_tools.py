@@ -28,12 +28,12 @@ def forecast_animation(history, forecast, title, holdout=None):
     position = len(fig.data)
     fig.add_trace(go.Scatter(x=forecast.index, y=forecast.forecast,
         name='Future forecast', mode='lines+markers',
-        line=dict(color='#218c74', dash='dash'), marker_size=5))
+        line=dict(color='#3d8053', dash='dash'), marker_size=5))
     if 'lower' in forecast:
         fig.add_trace(go.Scatter(x=forecast.index, y=forecast.lower, line_width=0,
                                 showlegend=False, hoverinfo='skip'))
         fig.add_trace(go.Scatter(x=forecast.index, y=forecast.upper, line_width=0,
-            fill='tonexty', fillcolor='rgba(33,140,116,.15)', name='Conditional interval'))
+            fill='tonexty', fillcolor='rgba(61,128,83,.19)', name='Conditional interval'))
     frames = []
     for stop in range(1, len(forecast)+1):
         part = forecast.iloc[:stop]
@@ -43,7 +43,7 @@ def forecast_animation(history, forecast, title, holdout=None):
         frames.append(go.Frame(name=str(stop), data=data,
                               traces=list(range(position, position+len(data)))))
     fig.frames = frames
-    fig.update_layout(title=title, template='plotly_white', hovermode='x unified',
+    fig.update_layout(title=title, template='plotly_white',
         xaxis_title='Week', yaxis_title='Filling (%)', height=400,
         margin=dict(l=35, r=15, t=65, b=65),
         legend=dict(orientation='h', y=1.16, x=0),

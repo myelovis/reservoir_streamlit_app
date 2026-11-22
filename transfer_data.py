@@ -52,13 +52,17 @@ def flow_records(payload, direction):
         raise ApiDataError("ENTSO-E returned invalid physical flow records. Try again later.") from None
 
 
-@st.cache_data(ttl=3600, max_entries=12, show_spinner="Downloading physical flows from ENTSO-E…")
-def load_transfers(year):
+@st.cache_data(ttl=3600, max_entries=12, show_spinner=False)
+def load_transfers(year, _update=None):
     token = get_secret("ENTSOE_TOKEN")
     start = pd.Timestamp(year=year, month=1, day=1, tz="Europe/Oslo")
     end = min(start + pd.DateOffset(years=1), pd.Timestamp.now(tz="Europe/Oslo").normalize())
     frames = []
-    for direction, origin, destination in (("in", DK1, NO2), ("out", NO2, DK1)):
+    directions = (("in", DK1, NO2), ("out", NO2, DK1))
+    for index, (direction, origin, destination) in enumerate(directions):
+        label = "imports" if direction == "in" else "exports"
+        if _update:
+            _update(index * 45, f"Requesting {label}")
         response = get_response("ENTSO-E", URL, {
             "securityToken": token,
             "documentType": "A11",
@@ -67,6 +71,8 @@ def load_transfers(year):
             "periodStart": start.tz_convert("UTC").strftime("%Y%m%d%H%M"),
             "periodEnd": end.tz_convert("UTC").strftime("%Y%m%d%H%M"),
         })
+        if _update:
+            _update(index * 45 + 30, f"Validating {label}")
         rows = flow_records(response.content, direction)
         if not rows:
             continue

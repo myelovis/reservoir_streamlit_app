@@ -7,6 +7,7 @@ import streamlit as st
 
 from api_data import ApiDataError, get_json
 from region_tools import read_areas, sample_regions
+from ui_feedback import fetch_progress
 
 ARCHIVE = "https://archive-api.open-meteo.com/v1/archive"
 FIRST_DAY = date(1940, 1, 1)
@@ -39,7 +40,7 @@ def sample_coordinates(region_id):
 
 
 @st.cache_data(ttl=86400, max_entries=64, show_spinner=False)
-def fetch_period(region_id, start, end):
+def fetch_period(region_id, start, end, _received=None):
     points, note = sample_coordinates(region_id)
     payload = get_json("Open-Meteo ERA5", ARCHIVE, {
         "latitude": ",".join(points.latitude.map(lambda value: f"{value:.5f}")),
@@ -50,6 +51,8 @@ def fetch_period(region_id, start, end):
         "models": "era5",
         "timezone": "GMT",
     })
+    if _received:
+        _received()
     expected = pd.date_range(start, end + timedelta(days=1), inclusive="left", freq="h", tz="UTC")
     if not isinstance(payload, list) or len(payload) != len(points):
         raise ApiDataError(f"Open-Meteo did not return all weather samples for {region_id}. Retry or shorten the range.")
@@ -69,14 +72,26 @@ def fetch_period(region_id, start, end):
     return frame, f"Open-Meteo ERA5 API · {region_id} · mean of {len(points)} fixed sample points{note}"
 
 
-def load_period(region_id, start, end):
+def load_period(region_id, start, end, update=None):
     start, end = pd.Timestamp(start).date(), pd.Timestamp(end).date()
     available = archive_end()
     if start < FIRST_DAY or start > end or end > available:
         raise ApiDataError(f"Choose ERA5 dates between {FIRST_DAY} and {available}. Recent days have a publication delay.")
+    if update is None:
+        with fetch_progress("Open-Meteo weather") as report:
+            return load_period(region_id, start, end, update=report)
     parts = []
-    for year in range(start.year, end.year + 1):
-        frame, source = fetch_period(region_id, max(start, date(year, 1, 1)), min(end, date(year, 12, 31)))
+    years = range(start.year, end.year + 1)
+    for index, year in enumerate(years):
+        update(round(100 * index / len(years)), f"Requesting or reading {region_id} · {year}")
+
+        def received():
+            update(round(100 * (index + .75) / len(years)), f"Validating {region_id} · {year}")
+
+        frame, source = fetch_period(
+            region_id, max(start, date(year, 1, 1)), min(end, date(year, 12, 31)),
+            _received=received,
+        )
         parts.append(frame)
     return pd.concat(parts), source
 

@@ -29,5 +29,5 @@ def get_secret(name):
         except (KeyError,FileNotFoundError):
             value = None
     if not value:
-        raise ValueError(f'Run python setup_local.py once, or add {name} to Streamlit Secrets.')
+        raise ValueError(f'The app owner needs to add {name} to Streamlit Secrets for electricity transfers.')
     return value

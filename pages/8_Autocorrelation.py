@@ -1,57 +1,93 @@
-from popup_ui import in_popup, page_title, settings
-"""Check how weekly filling relates to its past values."""
-import numpy as np
-import plotly.graph_objects as go
+import calendar
+import pandas as pd
+import matplotlib.pyplot as plt
 import streamlit as st
-from statsmodels.tsa.stattools import acf, pacf
-from analysis import regular_series
-from reservoir_data import choose_area
-from shared_ui import choose_period, area_id, explain_errors
+from api_data import ApiDataError
+from ui_feedback import fetch_progress, show_chart
+from transfer_data import load_transfers
+from transfer_plots import annual_totals, energy_donut, power_lines, COLORS
+from popup_ui import in_popup, page_title
 
+page_title('Norway–Denmark electricity transfers')
+with (st.popover('Connection and year') if in_popup() else st.container()):
+    left, middle, right = (st.container(), st.container(), st.container()) if in_popup() else st.columns([2,1,1])
+    left.selectbox('Connection', ['NO2-DK1'])
+    current = pd.Timestamp.now(tz='Europe/Oslo').year
+    year = int(middle.selectbox('Year', [current-1, current, current-2]))
+    if right.button('Refresh data'):
+        load_transfers.clear(year)
+try:
+    with fetch_progress("ENTSO-E transfers") as update:
+        df = load_transfers(year, _update=update)
+except (ApiDataError, ValueError) as error:
+    st.error(str(error))
+    st.stop()
+if df.empty:
+    st.info('ENTSO-E returned no physical flow observations for this year.')
+    st.stop()
+annual = df
+totals = annual_totals(annual, year)
+if not in_popup():
+    st.caption('Dark solid = into Norway / import · light dashed = out of Norway / export')
+energy, flow, records = st.tabs(['1 · Energy', '2 · Power flow', '3 · Records & method'])
 
-@st.cache_data(ttl=3600, max_entries=16, show_spinner=False)
-def correlations(values, lags, difference):
-    y = regular_series(values, '7D', minimum=12)
-    if difference:
-        y = y.diff().dropna()
-    if lags >= len(y) // 2:
-        raise ValueError('Choose fewer lags or a longer time frame.')
-    if y.std() <= np.finfo(float).eps:
-        raise ValueError('The selected series is constant. Choose another time frame.')
-    a, a_limits = acf(y, nlags=lags, alpha=.05, fft=True)
-    p, p_limits = pacf(y, nlags=lags, alpha=.05, method='ywm')
-    return [(a, a_limits), (p, p_limits)]
+with energy:
+    table, chart = st.columns([1, 1])
+    with table:
+        st.table(totals.rename(
+            index={'in': 'Into Norway', 'out': 'Out of Norway'},
+            columns={'energy_mwh': 'Energy (MWh)', 'reported_hours': 'Reported hours',
+                     'coverage_pct': 'Coverage (%)'},
+        ).round(2))
+        if len(totals) < 2 or (totals.coverage_pct < 99.999).any():
+            st.warning('Incomplete annual coverage. Totals include reported intervals only.')
+        if (totals.coverage_pct > 100.001).any():
+            st.warning('Coverage exceeds 100%. Check for overlapping or duplicate intervals.')
+    with chart:
+        if totals.energy_mwh.sum() > 0:
+            if in_popup():
+                import plotly.graph_objects as go
+                fig = go.Figure(go.Pie(labels=['Into Norway' if d=='in' else 'Out of Norway' for d in totals.index],
+                    values=totals.energy_mwh,hole=.65,sort=False,textinfo='percent',
+                    marker=dict(colors=[COLORS[d] for d in totals.index],pattern=dict(shape=['' if d=='in' else '/' for d in totals.index])),
+                    insidetextfont=dict(color=['white' if d=='in' else '#083d25' for d in totals.index])))
+                fig.update_layout(height=270,margin=dict(t=10,b=40,l=5,r=5),legend=dict(orientation='h',y=-.1),
+                    annotations=[dict(text=f'{totals.energy_mwh.sum():,.0f}<br>MWh',showarrow=False)])
+                show_chart(fig)
+            else:
+                fig = energy_donut(totals, year)
+                st.pyplot(fig)
+                plt.close(fig)
+        else:
+            st.info('No positive energy was reported for this year.')
 
+with flow:
+    summary, filters = st.columns([6,1])
+    with filters.popover('Months', icon=':material/filter_alt:'):
+        months = st.multiselect('Choose months', list(range(1,13)), default=[1],
+                               format_func=lambda m:calendar.month_abbr[m])
+    summary.caption('Hourly power · '+(', '.join(calendar.month_abbr[m] for m in sorted(months)) or 'No months selected'))
+    if months and annual.time.dt.tz_convert('Europe/Oslo').dt.month.isin(months).any():
+        # Keep this call compatible with the earlier two-argument helper.
+        fig = power_lines(annual, months)
+        fig.set_size_inches(12, 3.3 if in_popup() else 4.5)
+        fig.tight_layout()
+        st.pyplot(fig)
+        plt.close(fig)
+    else:
+        st.info('Choose months with reported observations.')
 
-page_title('ACF and PACF')
-series = choose_area(default_kind='EL', default_number=3)
-start, end = choose_period(series)
-with settings('ACF / PACF settings'):
-    with st.form('autocorrelation_settings'):
-        lags = st.slider('Lags (weeks)', 1, 52, 12)
-        difference = st.checkbox('Use weekly changes', value=True)
-        run = st.form_submit_button('Run ACF / PACF')
+with records:
+    st.caption(f'Available: {df.time.min():%Y-%m-%d} to {df.time.max():%Y-%m-%d} UTC · ENTSO-E API')
+    st.dataframe(annual.head(100), height=220, width='stretch')
+    with st.expander('Source, units and method'):
+        st.markdown('''
+        **Source:** ENTSO-E physical flows for NO2 ↔ DK1, requested directly by Streamlit.
 
-context = (area_id(series), start, end, lags, difference)
-with explain_errors():
-    if run:
-        values = series.loc[str(start):str(end), 'fill_ratio'] * 100
-        with st.spinner('Checking weekly relationships…'):
-            st.session_state['correlation_plots'] = (context, correlations(values, lags, difference))
-    saved = st.session_state.get('correlation_plots')
-    if saved is None or saved[0] != context:
-        st.info('Choose settings and click Run ACF / PACF.')
-        st.stop()
-    for tab, (values, limits), name in zip(st.tabs(['ACF', 'PACF']), saved[1], ['ACF', 'PACF']):
-        with tab:
-            # Skip lag zero: each value is perfectly related to itself.
-            x = np.arange(1, len(values))
-            fig = go.Figure()
-            fig.add_scatter(x=x, y=limits[1:, 0] - values[1:], mode='lines', line_width=0, showlegend=False)
-            fig.add_scatter(x=x, y=limits[1:, 1] - values[1:], mode='lines', line_width=0,
-                            fill='tonexty', fillcolor='rgba(40,116,81,0.15)', name='Approx. 95% band')
-            fig.add_bar(x=x, y=values[1:], marker_color='#287451', name=name)
-            fig.update_layout(title=f'{area_id(series)} · {name}', xaxis_title='Lag (weeks)',
-                              yaxis_title='Correlation', template='plotly_white', height=300 if in_popup() else 380)
-            st.plotly_chart(fig, width='stretch')
-    st.caption('ACF includes indirect relationships; PACF adjusts for shorter lags. These bands are approximate. Correlation does not establish causation or select a model by itself.')
+        Power is MW. Energy is MW × interval hours, in MWh. Transfers are not domestic production.
+        Year and month selections use Europe/Oslo. Coverage compares reported hours with the full
+        calendar year (8,760 hours, or 8,784 in a leap year). Missing periods are not filled with zero.
+
+        This example covers one connection, not all Norwegian imports and exports.
+        ''')
+        st.link_button('ENTSO-E API reference', 'https://documenter.getpostman.com/view/7009892/2s93JtP3F6')

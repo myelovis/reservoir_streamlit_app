@@ -4,6 +4,7 @@ import numpy as np
 import streamlit as st
 import matplotlib.pyplot as plt
 from api_data import ApiDataError, get_json
+from ui_feedback import fetch_progress
 
 METRICS = {
     "fill_ratio": "Filling (fraction)",
@@ -38,11 +39,15 @@ def prepare_reservoirs(records):
     return df.sort_values(["area_type", "area_number", "date_id"])
 
 
-@st.cache_data(ttl=300, show_spinner="Downloading reservoir observations from NVE…")
-def load_reservoirs():
+@st.cache_data(ttl=300, show_spinner=False)
+def load_reservoirs(_update=None):
+    if _update:
+        _update(10, "Requesting reservoir observations")
     records = get_json(
         "NVE", "https://biapi.nve.no/magasinstatistikk/api/Magasinstatistikk/HentOffentligData"
     )
+    if _update:
+        _update(70, "Response received · validating observations")
     if not isinstance(records, list) or not records:
         raise ApiDataError("NVE returned no usable reservoir observations. Try again later.")
     return prepare_reservoirs(records)
@@ -61,7 +66,8 @@ def choose_area(default_kind="NO", default_number=0, panel=None, compact=False):
     panel = controls_panel() if panel is None else panel
     compact = compact or in_popup()
     try:
-        df = load_reservoirs()
+        with fetch_progress("NVE reservoirs") as update:
+            df = load_reservoirs(_update=update)
     except ApiDataError as error:
         st.error(str(error))
         st.stop()
