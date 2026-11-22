@@ -1,9 +1,9 @@
 :root {
-    --forest: #295b44;
-    --green: #326e4f;
-    --muted: #3e6550;
-    --border: #bfd4c4;
-    --surface: #eaf3eb;
+    --forest: #153f31;
+    --green: #287451;
+    --muted: #5c7465;
+    --border: #d7e4da;
+    --surface: #edf4ed;
     --paper: #f7faf7;
 }
 
@@ -12,14 +12,22 @@
     color: var(--forest);
 }
 [data-testid="stMainBlockContainer"] {
-    max-width: 1440px;
+    max-width: 1240px;
     padding: clamp(3.1rem, 7vh, 4.5rem) clamp(1rem, 3vw, 3.75rem) 1.25rem;
 }
 [data-testid="stSidebar"] {
     background: var(--surface);
     border-right: 1px solid var(--border);
 }
-h1, h2, h3 { color: var(--forest); font-weight: 650; letter-spacing: -.025em; }
+h1, h2, h3 {
+    font-family: Arial, Helvetica, sans-serif;
+    color: var(--forest);
+    font-weight: 650;
+    letter-spacing: -.025em;
+}
+h1 { font-size: clamp(1.8rem, 2.7vw, 2.5rem); line-height: 1.12; letter-spacing: -.045em; }
+h2 { font-size: 1.75rem; }
+h3 { font-size: 1.5rem; }
 [data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p { color: var(--muted); }
 [data-testid="stMarkdownContainer"] a, [data-testid="stCaptionContainer"] a {
     color: var(--green);
@@ -27,8 +35,8 @@ h1, h2, h3 { color: var(--forest); font-weight: 650; letter-spacing: -.025em; }
     text-underline-offset: 3px;
 }
 .st-key-home_explore, .st-key-home_diagnose, .st-key-home_forecast {
-    background: repeating-linear-gradient(135deg, #eaf3eb 0 12px, #e3efe5 12px 13px);
-    border: 1px solid var(--border);
+    background: repeating-linear-gradient(135deg, #e2eee5 0 2px, #edf5ee 2px 14px);
+    border: 1px solid #ccdfd0;
     border-radius: 12px;
     padding: 1.1rem !important;
     height: 100%;
@@ -45,8 +53,8 @@ h1, h2, h3 { color: var(--forest); font-weight: 650; letter-spacing: -.025em; }
 .st-key-home_explore [data-testid="stButton"] button,
 .st-key-home_diagnose [data-testid="stButton"] button,
 .st-key-home_forecast [data-testid="stButton"] button {
-    background: #f4f8f4;
-    border-color: #d6e5d9;
+    background: transparent;
+    border-color: transparent;
 }
 .st-key-home_explore button, .st-key-home_diagnose button, .st-key-home_forecast button {
     justify-content: flex-start;
@@ -141,11 +149,13 @@ h1, h2, h3 { color: var(--forest); font-weight: 650; letter-spacing: -.025em; }
 }
 [data-testid="stMain"] button[kind="primary"],
 [data-testid="stDialog"] button[kind="primary"] {
-    background: #d2e7d6;
-    border-color: #8eaf97;
-    color: var(--forest);
+    background: var(--green);
+    border-color: var(--green);
+    color: var(--paper);
     font-weight: 750;
 }
+[data-testid="stMain"] button[kind="primary"] p,
+[data-testid="stDialog"] button[kind="primary"] p { color: inherit; }
 [data-testid="stPlotlyChart"] svg text { font-weight: 700; }
 
 @media (max-width: 760px) {
