@@ -20,13 +20,22 @@ def regular_series(series, interval, minimum=3):
     return y
 
 
+STL_MIN_WEEKS = 48
+
+
+def stl_period(weeks):
+    """Use an annual cycle only when at least two annual cycles are available."""
+    return 52 if weeks >= 104 else 24
+
+
 def stl_analysis(filling, seasonal=13, trend=89, robust=True, label="Selected region"):
-    y = regular_series(filling, "7D", minimum=104)
+    y = regular_series(filling, "7D", minimum=STL_MIN_WEEKS)
+    period = stl_period(len(y))
     if not isinstance(seasonal, int) or seasonal < 7 or seasonal % 2 == 0:
         raise ValueError("Seasonal smoother must be an odd integer of at least 7.")
-    if not isinstance(trend, int) or trend <= 52 or trend % 2 == 0:
-        raise ValueError("Trend smoother must be an odd integer greater than 52.")
-    result = STL(y, period=52, seasonal=seasonal, trend=trend, robust=robust).fit()
+    if not isinstance(trend, int) or trend <= period or trend % 2 == 0:
+        raise ValueError(f"Trend smoother must be an odd integer greater than {period}.")
+    result = STL(y, period=period, seasonal=seasonal, trend=trend, robust=robust).fit()
     components = pd.DataFrame({"observed": y, "trend": result.trend,
                                "seasonal": result.seasonal, "residual": result.resid})
     fig, axes = plt.subplots(4, 1, figsize=(11, 8), sharex=True, constrained_layout=True)
@@ -107,4 +116,3 @@ def temperature_lof(weather, proportion=.01, neighbours=20, label="Selected regi
     ax.set(title=f"{label} · temperature LOF", xlabel="Time (UTC)", ylabel="Temperature (°C)")
     ax.legend()
     return fig, results, {"hours": len(y), "anomaly_hours": int(flagged.sum()), "anomaly_percent": float(100 * flagged.mean())}
-
