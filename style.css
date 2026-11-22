@@ -87,17 +87,7 @@ h1, h2, h3 { color: var(--forest); font-weight: 650; letter-spacing: -.025em; }
     border-color: var(--border);
     border-radius: 10px;
 }
-[data-testid="stProgress"] p { color: var(--forest); }
 [data-testid="stHeaderActionElements"] { display: none; }
-
-/* Keep the progress track pale and the completed portion visibly green. */
-[data-testid="stProgress"] [data-baseweb="progress-bar"] > div:first-child {
-    background-color: #d9eadc !important;
-}
-[data-testid="stProgress"] [data-baseweb="progress-bar"] > div:first-child > div,
-[data-testid="stProgress"] [role="progressbar"] > div {
-    background-color: #287451 !important;
-}
 
 [data-testid="stSidebar"] [data-testid="stSidebarNav"] a,
 [data-testid="stSidebar"] [data-testid="stSidebarNav"] span,
