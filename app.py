@@ -43,10 +43,10 @@ def home():
         ('Forecast', [('pages/7_Filling_Forecast.py','Reservoir forecast')]),
     ]
     plot_labels = {
-        'STL and spectrogram': 'STL / Spectrogram',
-        'Weather outliers': 'SPC / LOF',
-        'ACF and PACF': 'ACF / PACF',
-        'Sliding window correlation': 'SWC',
+        'STL and spectrogram': 'Reservoir trends and cycles (STL / Spectrogram)',
+        'Weather outliers': 'Weather outliers (SPC / LOF)',
+        'ACF and PACF': 'Filling compared with past weeks (ACF / PACF)',
+        'Sliding window correlation': 'Weather and filling correlation (SWC)',
     }
     for column, (title, links) in zip(columns, groups):
         with column.container(border=True, key=f'home_{title.lower()}'):
@@ -76,3 +76,5 @@ page = st.navigation({
     'Forecast':[st.Page('pages/7_Filling_Forecast.py',title='Reservoir forecast')],
 })
 page.run()
+
+
