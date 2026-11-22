@@ -1,6 +1,24 @@
 # Chronological Insights · Norway
 
-A Streamlit app for exploring Norwegian reservoir levels, weather, and electricity transfers. On Home, **Select region and dates** sets the area and time range for the reservoir and weather analyses opened from the cards. **Electricity transfers** has its own year selector for the NO2–DK1 connection.
+Chronological Insights
+└── Home
+    ├── Select region and dates
+    │   └── GeoJSON boundaries → shared area and time range
+    │
+    ├── Explore
+    │   ├── ↗ Reservoir table → NVE → weekly observations
+    │   ├── ↗ Reservoir plots → NVE → filling, capacity, and stored energy
+    │   ├── ↗ Electricity transfers → ENTSO-E → NO2 ↔ DK1 power and energy
+    │   └── ↗ STL and spectrogram → NVE → seasonal patterns in weekly filling
+    │
+    ├── Diagnose
+    │   ├── ↗ Weather outliers → Open-Meteo → unusual temperature or rainfall hours
+    │   ├── ↗ ACF and PACF → NVE → links between current and past filling
+    │   └── ↗ Sliding window correlation → Open-Meteo + NVE → weather and filling links over time
+    │
+    └── Forecast
+        └── ↗ Reservoir forecast → NVE + optional Open-Meteo weather
+            └── SARIMAX, Ridge, or Boosting → animated weekly forecast
 
 ## APIs at a glance
 
