@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
 from reservoir_data import choose_area
-from analysis import stl_analysis, spectrogram_analysis
+from analysis import STL_MIN_WEEKS, stl_analysis, stl_period, spectrogram_analysis
 
 @st.cache_data(ttl=3600, max_entries=12, show_spinner=False)
 def pattern_plot(method, filling, first, second, robust, label):
@@ -26,8 +26,8 @@ if not in_popup():
 series = choose_area(default_kind="EL", default_number=3)
 kind, number = series.area_type.iloc[0], int(series.area_number.iloc[0])
 label = f"NO{number}" if kind == "EL" else ("Norway" if kind == "NO" else f"Watercourse {number}")
-if len(series) < 104:
-    st.info("Select an area with at least two years of weekly filling observations.")
+if len(series) < STL_MIN_WEEKS:
+    st.info(f"Select an area with at least {STL_MIN_WEEKS} weekly filling observations.")
     st.stop()
 first, last = series.index.min().date(), series.index.max().date()
 default_start = max(first, (pd.Timestamp(last) - pd.DateOffset(years=5)).date())
@@ -43,19 +43,27 @@ if len(selected) != 2:
     st.info("Choose a start and an end date.")
     st.stop()
 filling = series.loc[str(selected[0]):str(selected[1]), "fill_ratio"] * 100
-st.caption(f'{label} · {len(filling)} weekly observations · filling (%) · NVE / Atlas')
+st.caption(f'{label} · {len(filling)} weekly observations · filling (%) · NVE API')
 
 stl_tab, spectral_tab = st.tabs(["STL decomposition", "Spectrogram"])
 with stl_tab:
     if not in_popup():
         st.subheader("Trend, seasonality and residuals")
+    period = stl_period(len(filling))
+    if len(filling) >= STL_MIN_WEEKS:
+        st.caption(f'STL uses a {period}-week seasonal cycle for this selection.')
     with settings('STL settings'):
         with st.form('stl_settings'):
             left, middle, right = st.columns(3)
-            seasonal = left.number_input("Seasonal smoother (odd)", min_value=7, max_value=101, value=13, step=2)
-            trend = middle.number_input("Trend smoother (weeks, odd)", min_value=53, max_value=521, value=89, step=2)
-            robust = right.checkbox("Robust fitting", value=True)
-            run_stl = st.form_submit_button('Run STL')
+            seasonal = left.number_input("Seasonal smoother (odd)", min_value=7, max_value=101, value=13, step=2,
+                                         help="Larger odd values make the seasonal pattern change more slowly.")
+            trend = middle.number_input("Trend smoother (weeks, odd)", min_value=period + 1, max_value=521,
+                                        value=89 if period == 52 else 53, step=2,
+                                        key=f"stl_trend_{period}",
+                                        help="Larger odd windows show a smoother long-term trend. The window must exceed the seasonal cycle.")
+            robust = right.checkbox("Robust fitting", value=True,
+                                    help="Reduces the influence of unusual weeks on the fit.")
+            run_stl = st.form_submit_button('Run STL', disabled=len(filling) < STL_MIN_WEEKS)
     context = (label, tuple(selected), int(seasonal), int(trend), robust)
     if run_stl:
         try:
@@ -65,7 +73,7 @@ with stl_tab:
             st.warning(str(error))
     saved = st.session_state.get('stl_plot')
     if saved is None or saved[0] != context:
-        st.info('Choose settings and click Run STL. Use at least two years.')
+        st.info(f'Select at least {STL_MIN_WEEKS} consecutive weeks, then click Run STL.')
     else:
         image, components = saved[1]
         if in_popup():
@@ -74,7 +82,8 @@ with stl_tab:
             figure = make_subplots(rows=4, cols=1, shared_xaxes=True, vertical_spacing=.06)
             for row, name in enumerate(components, start=1):
                 figure.add_trace(go.Scatter(x=components.index,y=components[name],name=name,line_color='#205b3d'),row=row,col=1)
-            figure.update_layout(height=290,margin=dict(t=15,b=20),showlegend=True)
+            figure.update_layout(height=570, margin=dict(l=45, r=18, t=22, b=42),
+                                 showlegend=True, legend=dict(orientation="h", y=1.08))
             st.plotly_chart(figure,width='stretch')
         else:
             st.image(image)
@@ -86,8 +95,11 @@ with spectral_tab:
     with settings('Spectrogram settings'):
         with st.form('spectrogram_settings'):
             left, right = st.columns(2)
-            window = int(left.number_input('Window length (weeks)', 4, 520, 104))
-            overlap = int(right.number_input('Window overlap (weeks)', 0, 519, 78))
+            default_window = min(104, max(4, 4 * len(filling) // 5))
+            window = int(left.number_input('Window length (weeks)', 4, 520, default_window,
+                                           help='Longer windows reveal slower cycles. Shorter windows locate changes more precisely.'))
+            overlap = int(right.number_input('Window overlap (weeks)', 0, 519, 3 * default_window // 4,
+                                             help='Weeks shared by neighbouring windows. Use less than the window length.'))
             run_spectrum = st.form_submit_button('Run spectrogram')
     context = (label, tuple(selected), window, overlap)
     if run_spectrum:
@@ -107,7 +119,7 @@ with spectral_tab:
             power = spectrum.to_numpy().T
             db = 10*np.log10(np.maximum(power/max(float(power.max()),np.finfo(float).tiny),1e-12))
             figure = go.Figure(go.Heatmap(x=spectrum.index,y=spectrum.columns,z=db,colorscale='Greens',zmin=-60,zmax=0))
-            figure.update_layout(height=290,margin=dict(t=10,b=35),yaxis_title='Cycles / year',yaxis_range=[0,6])
+            figure.update_layout(height=440, margin=dict(t=25,b=55),yaxis_title='Cycles / year',yaxis_range=[0,6])
             st.plotly_chart(figure,width='stretch')
         else:
             st.image(image)

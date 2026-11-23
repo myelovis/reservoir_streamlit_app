@@ -27,4 +27,3 @@ with summary_tab:
 st.caption("Each numeric field has its own sparkline scale. Dates and text use values; identifiers are metadata.")
 with records_tab:
     st.dataframe(month, height=280, width="stretch")
-

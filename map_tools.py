@@ -6,7 +6,8 @@ import streamlit as st
 from region_tools import read_areas
 from weather_data import load_period
 from weather_stats import PROPERTIES
-from atlas_data import DatasetNotReady
+from api_data import ApiDataError
+from ui_feedback import fetch_progress
 
 PALETTE = ['#287451','#549366','#78ad87','#a0c6a4','#386b4c']
 
@@ -29,13 +30,18 @@ def colour_map(outlines, colour_kind, property_name, start, end, selected):
     legend, missing = None, []
     if colour_kind == 'Weather':
         values = []
-        for area in shaded.itertuples():
-            try:
-                data, _ = load_period(area.area_id,start,end)
-                values.append(float(getattr(data[property_name],PROPERTIES[property_name][2])()))
-            except DatasetNotReady:
-                values.append(np.nan)
-                missing.append(area.area_id)
+        with fetch_progress("Open-Meteo map weather") as update:
+            for index, area in enumerate(shaded.itertuples()):
+                def report(percent, stage):
+                    update(round((index + percent / 100) * 100 / len(shaded)), stage)
+
+                try:
+                    data, _ = load_period(area.area_id, start, end, update=report)
+                    values.append(float(getattr(data[property_name], PROPERTIES[property_name][2])()))
+                except ApiDataError:
+                    values.append(np.nan)
+                    missing.append(area.area_id)
+            update(99, "Preparing map colours")
         finite = [value for value in values if np.isfinite(value)]
         low, high = (min(finite),max(finite)) if finite else (0,1)
         legend = cm.LinearColormap(['#edf6ee','#8aba94','#205b3d'],vmin=low,vmax=max(high,low+1e-6))

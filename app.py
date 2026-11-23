@@ -42,6 +42,12 @@ def home():
                       ('pages/6_Weather_Correlation.py','Sliding window correlation')]),
         ('Forecast', [('pages/7_Filling_Forecast.py','Reservoir forecast')]),
     ]
+    plot_labels = {
+        'STL and spectrogram': 'Reservoir trends and cycles (STL / Spectrogram)',
+        'Weather outliers': 'Weather outliers (SPC / LOF)',
+        'ACF and PACF': 'Filling compared with past weeks (ACF / PACF)',
+        'Sliding window correlation': 'Weather and filling correlation (SWC)',
+    }
     for column, (title, links) in zip(columns, groups):
         with column.container(border=True, key=f'home_{title.lower()}'):
             st.caption({'Explore':'01 / OBSERVE','Diagnose':'02 / UNDERSTAND','Forecast':'03 / LOOK AHEAD'}[title])
@@ -50,12 +56,12 @@ def home():
                       'Diagnose':'Patterns, unusual values and relationships.',
                       'Forecast':'Future filling with SARIMAX or Ridge.'}[title])
             for path, label in links:
-                if st.button(label, icon=':material/arrow_outward:', key=f'open_{label}', type='tertiary', width='stretch'):
+                if st.button(plot_labels.get(label, label), icon=':material/arrow_outward:', key=f'open_{label}', type='tertiary', width='stretch'):
                     st.session_state['analysis_popup_label'] = label
     if st.session_state.get('analysis_popup_label'):
         from analysis_popup import open_analysis
         open_analysis(st.session_state['analysis_popup_label'])
-    st.caption('NVE · ERA5 · ENTSO-E / Saved observations from MongoDB Atlas')
+    st.caption('NVE · ERA5 · ENTSO-E / Data fetched directly from the APIs')
 
 
 page = st.navigation({
@@ -70,3 +76,5 @@ page = st.navigation({
     'Forecast':[st.Page('pages/7_Filling_Forecast.py',title='Reservoir forecast')],
 })
 page.run()
+
+
