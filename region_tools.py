@@ -19,7 +19,7 @@ def samples_hash(points):
 def read_areas(kind):
     path = DATA / f'{kind}.geojson'
     if not path.exists():
-        raise ValueError(f'Add official {kind} boundaries first. See START_HERE.md, step 1.')
+        raise ValueError(f'Add official {kind} boundaries first. See README.md.')
     payload = json.loads(path.read_text(encoding='utf-8'))
     areas = gpd.GeoDataFrame.from_features(payload['features'],crs=4326)
     needed = {'area_id', 'area_type', 'area_number', 'name'}
